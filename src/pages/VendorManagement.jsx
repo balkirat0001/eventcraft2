@@ -40,10 +40,10 @@ const VendorManagement = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <h2 className="text-3xl font-bold text-blue-700 mb-6">🍽 Vendor Management</h2>
+        <h2 className="text-3xl font-bold text-blue-700 mb-6"> Vendor Management</h2>
 
         <form onSubmit={handleAdd} className="bg-white p-6 rounded shadow mb-8">
-          <h3 className="text-xl font-semibold mb-4">➕ Add New Vendor</h3>
+          <h3 className="text-xl font-semibold mb-4"> Add New Vendor</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <input
               type="text"
@@ -81,7 +81,7 @@ const VendorManagement = () => {
           </button>
         </form>
 
-        <h3 className="text-xl font-semibold mb-3">📋 Existing Vendors</h3>
+        <h3 className="text-xl font-semibold mb-3"> Existing Vendors</h3>
         <ul className="space-y-3">
           {vendors.map((vendor) => (
             <li
@@ -91,7 +91,7 @@ const VendorManagement = () => {
               <div>
                 <p className="font-medium">{vendor.name}</p>
                 <p className="text-sm text-gray-500">
-                  📂 {vendor.category} • 📧 {vendor.contact}
+                  {vendor.category} •  {vendor.contact}
                 </p>
               </div>
               <button
