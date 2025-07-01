@@ -147,7 +147,7 @@ const App = () => {
         />
 
         {/* Main content with padding to prevent navbar overlap */}
-        <div className="pt-16"> {/* Add padding-top to account for navbar height */}
+        <div className="pt-16">
           <Routes>
             {/* Common Routes */}
             <Route path="/" element={<Home />} />
@@ -247,43 +247,43 @@ const App = () => {
           </Routes>
         </div>
 
-      {/* Chatbot code starts */}
-      <div className={`container ${showChatbot ? "show-chatbot" : ""}`}>
-        <button onClick={() => setShowChatbot((prev) => !prev)} id="chatbot-toggler">
-          <span className="material-symbols-rounded">mode_comment</span>
-          <span className="material-symbols-rounded">close</span>
-        </button>
-        <div className="chatbot-popup">
-          {/* Chatbot Header */}
-          <div className="chat-header">
-            <div className="header-info">
-              <ChatbotIcon />
-              <h2 className="logo-text">Chatbot</h2>
+        {/* Chatbot section */}
+        <div className={`container ${showChatbot ? "show-chatbot" : ""}`}>
+          <button onClick={() => setShowChatbot((prev) => !prev)} id="chatbot-toggler">
+            <span className="material-symbols-rounded">mode_comment</span>
+            <span className="material-symbols-rounded">close</span>
+          </button>
+          <div className="chatbot-popup">
+            {/* Chatbot Header */}
+            <div className="chat-header">
+              <div className="header-info">
+                <ChatbotIcon />
+                <h2 className="logo-text">Chatbot</h2>
+              </div>
+              <button onClick={() => setShowChatbot((prev) => !prev)} className="material-symbols-rounded">
+                keyboard_arrow_down
+              </button>
             </div>
-            <button onClick={() => setShowChatbot((prev) => !prev)} className="material-symbols-rounded">
-              keyboard_arrow_down
-            </button>
-          </div>
-          {/* Chatbot Body */}
-          <div ref={chatBodyRef} className="chat-body">
-            <div className="message bot-message">
-              <ChatbotIcon />
-              <p className="message-text">
-                Hey there  <br /> How can I help you today?
-              </p>
+            {/* Chatbot Body */}
+            <div ref={chatBodyRef} className="chat-body">
+              <div className="message bot-message">
+                <ChatbotIcon />
+                <p className="message-text">
+                  Hey there  <br /> How can I help you today?
+                </p>
+              </div>
+              {/* Render the chat history dynamically */}
+              {chatHistory.map((chat, index) => (
+                <ChatMessage key={index} chat={chat} />
+              ))}
             </div>
-            {/* Render the chat history dynamically */}
-            {chatHistory.map((chat, index) => (
-              <ChatMessage key={index} chat={chat} />
-            ))}
-          </div>
-          {/* Chatbot Footer */}
-          <div className="chat-footer">
-            <ChatForm chatHistory={chatHistory} setChatHistory={setChatHistory} generateBotResponse={generateBotResponse} />
+            {/* Chatbot Footer */}
+            <div className="chat-footer">
+              <ChatForm chatHistory={chatHistory} setChatHistory={setChatHistory} generateBotResponse={generateBotResponse} />
+            </div>
           </div>
         </div>
       </div>
-      {/* Chatbot code ends */}
     </>
   );
 
