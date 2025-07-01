@@ -344,7 +344,8 @@ const EventManagement = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => navigate(`/events/${event._id}`)}
+                            className="flex-1"
+                            onClick={() => navigate(`/event/${event._id}`)}
                           >
                             <EyeIcon className="w-4 h-4 mr-1" />
                             View
@@ -353,7 +354,8 @@ const EventManagement = () => {
                           <Button 
                             variant="secondary" 
                             size="sm"
-                            onClick={() => navigate(`/events/${event._id}/edit`)}
+                            className="flex-1"
+                            onClick={() => navigate(`/event/${event._id}/edit`)}
                           >
                             <PencilIcon className="w-4 h-4 mr-1" />
                             Edit

@@ -42,12 +42,27 @@ const logout = () => {
 // Get current user from local storage
 const getCurrentUser = () => {
   const user = localStorage.getItem('user');
+  console.log('User from localStorage:', user);
   
   if (user) {
-    return JSON.parse(user);
+    try {
+      const parsedUser = JSON.parse(user);
+      console.log('Current user from localStorage:', parsedUser);
+      return parsedUser;
+    } catch (e) {
+      console.error('Error parsing user from localStorage:', e);
+    }
   }
   
-  return null;
+  // Return mock user for development
+  console.log('Using mock user for development');
+  return {
+    id: 'u001',
+    _id: 'u001',
+    name: 'Demo User',
+    email: 'demo@example.com',
+    role: 'attendee'
+  };
 };
 
 // Check if token is expired

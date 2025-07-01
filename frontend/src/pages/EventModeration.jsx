@@ -284,7 +284,7 @@ const EventModeration = () => {
                     </button>
                     
                     <button
-                      onClick={() => window.open(`/events/${event._id}`, '_blank')}
+                      onClick={() => window.open(`/event/${event._id}`, '_blank')}
                       className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       👁️ Preview

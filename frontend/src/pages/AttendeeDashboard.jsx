@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import eventService from '../services/eventService';
 import ticketService from '../services/ticketService';
+import { useSelector } from 'react-redux';
 
 const AttendeeDashboard = () => {
   console.log('AttendeeDashboard rendering...');
@@ -17,9 +18,9 @@ const AttendeeDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // Mock user for now
-  const user = { name: 'Attendee User', email: 'attendee@example.com' };
-  const isAuthenticated = true;
+  // Get user from Redux store
+  const user = useSelector(state => state.user.user) || { name: 'Attendee User', email: 'attendee@example.com' };
+  const isAuthenticated = !!user;
 
   // Set attendee role for API requests
   useEffect(() => {
@@ -52,8 +53,24 @@ const AttendeeDashboard = () => {
       
       setEvents(eventsData);
 
-      // Mock tickets for now
-      setTickets([]);
+      // Fetch user tickets
+      try {
+        console.log('Fetching user tickets...');
+        const ticketsResponse = await ticketService.getUserTickets();
+        console.log('Tickets response:', ticketsResponse);
+        
+        // Handle both array response and object with tickets property
+        const ticketsData = Array.isArray(ticketsResponse) 
+          ? ticketsResponse 
+          : ticketsResponse.tickets || ticketsResponse.data || [];
+        
+        setTickets(ticketsData);
+        console.log('User tickets loaded:', ticketsData.length);
+      } catch (ticketError) {
+        console.error('Error loading tickets:', ticketError);
+        // Don't fail the whole dashboard if tickets fail to load
+        setTickets([]);
+      }
 
       console.log('Dashboard data loaded successfully', { eventsCount: eventsData.length });
 
@@ -72,8 +89,13 @@ const AttendeeDashboard = () => {
       event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       event.location?.toLowerCase().includes(searchTerm.toLowerCase());
     
+    // Check if event.categories array includes the selected category
+    // or if event.category string matches the selected category
     const matchesCategory = selectedCategory === 'all' || 
-      event.category?.toLowerCase() === selectedCategory.toLowerCase();
+      (event.categories && Array.isArray(event.categories) && 
+        event.categories.some(cat => cat.toLowerCase() === selectedCategory.toLowerCase())) ||
+      (event.category && typeof event.category === 'string' && 
+        event.category.toLowerCase() === selectedCategory.toLowerCase());
     
     return matchesSearch && matchesCategory;
   });
@@ -278,6 +300,19 @@ const AttendeeDashboard = () => {
                     <option value="business">Business</option>
                     <option value="food">Food & Drink</option>
                     <option value="sports">Sports</option>
+                    <option value="arts">Arts & Culture</option>
+                    <option value="education">Education</option>
+                    <option value="health">Health & Wellness</option>
+                    <option value="science">Science</option>
+                    <option value="community">Community</option>
+                    <option value="charity">Charity & Causes</option>
+                    <option value="entertainment">Entertainment</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="lifestyle">Lifestyle</option>
+                    <option value="networking">Networking</option>
+                    <option value="outdoor">Outdoor & Recreation</option>
+                    <option value="travel">Travel & Tourism</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
 
@@ -301,10 +336,10 @@ const AttendeeDashboard = () => {
             {/* My Tickets Tab */}
             {activeTab === 'tickets' && (
               <div>
-                {tickets.length > 0 ? (
+                {tickets && tickets.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tickets.map((ticket) => (
-                      <TicketCard key={ticket._id} ticket={ticket} formatDate={formatDate} />
+                      <TicketCard key={ticket._id || ticket.id} ticket={ticket} formatDate={formatDate} />
                     ))}
                   </div>
                 ) : (
@@ -388,7 +423,7 @@ const EventCard = ({ event, formatDate, formatPrice, navigate }) => {
         
         <div className="flex space-x-2">
           <button
-            onClick={() => navigate(`/events/${event._id}`)}
+            onClick={() => navigate(`/event/${event._id}`)}
             className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             View Details
@@ -404,6 +439,8 @@ const EventCard = ({ event, formatDate, formatPrice, navigate }) => {
 
 // Ticket Card Component
 const TicketCard = ({ ticket, formatDate }) => {
+  const navigate = useNavigate();
+  
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
@@ -411,6 +448,20 @@ const TicketCard = ({ ticket, formatDate }) => {
       case 'used': return 'bg-gray-100 text-gray-800';
       default: return 'bg-blue-100 text-blue-800';
     }
+  };
+
+  const handleViewTicket = () => {
+    // Debug logging
+    console.log('Viewing ticket:', ticket);
+    console.log('Ticket ID:', ticket.id || ticket._id);
+    console.log('Ticket ID type:', typeof (ticket.id || ticket._id));
+    
+    // Navigate to ticket detail page
+    const ticketIdToUse = ticket.id || ticket._id;
+    console.log('Using ticket ID for navigation:', ticketIdToUse);
+    
+    // Use the correct route path
+    navigate(`/attendee/tickets/${ticketIdToUse}`);
   };
 
   return (
@@ -446,7 +497,10 @@ const TicketCard = ({ ticket, formatDate }) => {
       </div>
       
       <div className="mt-4 pt-4 border-t border-gray-200">
-        <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+        <button 
+          onClick={handleViewTicket}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
           View Ticket
         </button>
       </div>

@@ -53,29 +53,14 @@ This is the backend API server for EventCraft built with Node.js, Express, and M
 - `npm run dev` - Start the server in development mode with nodemon
 - `npm test` - Run tests (to be implemented)
 
+## API Endpoints
 
-## Working Features
-
-### API Endpoints
-
-- `GET /api/health` — Health check endpoint to verify the server is running.
-- `POST /api/auth/register` — User registration.
-- `POST /api/auth/login` — User login.
-- `GET /api/users` — Get users (protected route, requires authentication).
-- `GET /api/events` — Retrieve a list of events.
-- `POST /api/events` — Create a new event (protected route, requires authentication).
-
-### Project Structure
-- Models for User, Event, and Ticket.
-- Authentication middleware.
-- Organized routes for authentication, users, events, and tickets.
-
-### Database
-- Uses MongoDB with collections for users, events, and tickets.
-
-### Setup
-- Local development with `.env` preconfigured.
-- Runs on `http://localhost:5000`.
+- `GET /api/health` - Health check
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/users` - Get users (protected)
+- `GET /api/events` - Get events
+- `POST /api/events` - Create event (protected)
 
 ## Project Structure
 

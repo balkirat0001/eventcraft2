@@ -1,5 +1,6 @@
 import api from './api';
 import authService from './authService';
+import { mockEvents, getEventById } from './eventService';
 
 // Helper function to simulate API delays
 const mockDelay = (data, ms = 500) => {
@@ -8,25 +9,95 @@ const mockDelay = (data, ms = 500) => {
   });
 };
 
-// Mock ticket data
+// Mock ticket data - these are DEMO tickets, not user-purchased tickets
 const mockTickets = [
   {
     id: 'ticket001',
-    eventId: 'e001',
-    userId: 'u001',
-    ticketType: 'standard',
+    _id: 'ticket001',
+    eventId: '1',
+    eventTitle: 'Tech Conference 2024',
+    userId: 'u001', // This is a demo user ID, not the actual logged-in user
+    ticketType: 'Standard',
     price: 299.99,
     status: 'confirmed', // confirmed, canceled, used
     purchaseDate: '2024-06-01T14:30:00',
-    qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TKT-e001-u001-1622554200000',
+    qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TKT-1-u001-1622554200000',
     ticketNumber: 'TCK10023478',
     seatInfo: null,
-    checked: false
+    checked: false,
+    isDemo: true // Mark as demo ticket
+  },
+  {
+    id: 'ticket002',
+    _id: 'ticket002',
+    eventId: 'e002',
+    eventTitle: 'Music Festival',
+    userId: 'u001', // This is a demo user ID, not the actual logged-in user
+    ticketType: 'General Admission',
+    price: 150,
+    status: 'confirmed',
+    purchaseDate: '2024-05-15T10:20:00',
+    qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TKT-e002-u001-1621055400000',
+    ticketNumber: 'TCK10023479',
+    seatInfo: null,
+    checked: false,
+    isDemo: true // Mark as demo ticket
+  },
+  {
+    id: 'ticket003',
+    _id: 'ticket003',
+    eventId: 'e004',
+    eventTitle: 'Art Exhibition: Modern Perspectives',
+    userId: 'u001', // This is a demo user ID, not the actual logged-in user
+    ticketType: 'Standard',
+    price: 25,
+    status: 'confirmed',
+    purchaseDate: '2024-06-10T09:15:00',
+    qrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TKT-e004-u001-1623305700000',
+    ticketNumber: 'TCK10023480',
+    seatInfo: null,
+    checked: false,
+    isDemo: true // Mark as demo ticket
   }
 ];
 
+// Array to store user-purchased tickets separately from demo tickets
+const userPurchasedTickets = [];
+
 // Mock ticket types
-const mockTicketTypes = {
+export const mockTicketTypes = {
+  '1': [
+    {
+      id: 'tt001',
+      eventId: '1',
+      name: 'Early Bird',
+      price: 199.99,
+      available: 50,
+      sold: 25,
+      description: 'Limited early bird tickets at a special price',
+      perks: ['Access to all sessions', 'Welcome pack', 'Coffee breaks']
+    },
+    {
+      id: 'tt002',
+      eventId: '1',
+      name: 'Standard',
+      price: 299.99,
+      available: 300,
+      sold: 120,
+      description: 'Regular conference admission',
+      perks: ['Access to all sessions', 'Coffee breaks']
+    },
+    {
+      id: 'tt003',
+      eventId: '1',
+      name: 'VIP',
+      price: 499.99,
+      available: 50,
+      sold: 15,
+      description: 'Premium conference experience',
+      perks: ['Access to all sessions', 'Welcome pack', 'Coffee breaks', 'Lunch included', 'Exclusive networking event', 'Front row seating']
+    }
+  ],
   'e001': [
     {
       id: 'tt001',
@@ -80,7 +151,87 @@ const mockTicketTypes = {
       description: 'Premium festival experience',
       perks: ['Access to all performances', 'VIP viewing areas', 'Exclusive lounge access', 'Complimentary drinks', 'Fast lane entry']
     }
+  ],
+  'e003': [
+    {
+      id: 'tt006',
+      eventId: 'e003',
+      name: 'Pitch Night Entry',
+      price: 0,
+      available: 100,
+      sold: 45,
+      description: 'Standard entry to the pitch night event',
+      perks: ['Access to all pitches', 'Networking opportunity']
+    },
+    {
+      id: 'tt007',
+      eventId: 'e003',
+      name: 'Pitcher Package',
+      price: 50,
+      available: 20,
+      sold: 10,
+      description: 'Special package for those pitching ideas',
+      perks: ['Pitch slot', 'Presentation equipment', 'Feedback session']
+    }
   ]
+};
+
+// Helper function to ensure we can get a ticket by ID
+const getTicketById = (ticketId) => {
+  console.log('Getting ticket by ID:', ticketId);
+  console.log('Available mock tickets:', mockTickets.map(t => ({ id: t.id, _id: t._id })));
+  console.log('Available user tickets:', userPurchasedTickets.map(t => ({ id: t.id, _id: t._id })));
+  
+  // First, check user purchased tickets (these are preferred)
+  // Try to find by exact match first
+  let ticket = userPurchasedTickets.find(t => t.id === ticketId || t._id === ticketId);
+  
+  // If not found, try string comparison
+  if (!ticket) {
+    ticket = userPurchasedTickets.find(t => 
+      (t.id && t.id.toString() === ticketId.toString()) || 
+      (t._id && t._id.toString() === ticketId.toString())
+    );
+  }
+  
+  // If still not found in user tickets, check mock tickets
+  if (!ticket) {
+    ticket = mockTickets.find(t => t.id === ticketId || t._id === ticketId);
+    
+    if (!ticket) {
+      ticket = mockTickets.find(t => 
+        (t.id && t.id.toString() === ticketId.toString()) || 
+        (t._id && t._id.toString() === ticketId.toString())
+      );
+    }
+  }
+  
+  // If still not found, create a fallback ticket
+  if (!ticket) {
+    console.log('Ticket not found, creating fallback ticket');
+    ticket = {
+      id: ticketId,
+      _id: ticketId,
+      eventId: '1', // Default to first event
+      eventTitle: 'Event Ticket',
+      userId: 'u001',
+      ticketType: 'Standard',
+      price: 0,
+      status: 'confirmed',
+      purchaseDate: new Date().toISOString(),
+      qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=TKT-fallback-${ticketId}`,
+      ticketNumber: `TCK-${ticketId}`,
+      seatInfo: null,
+      checked: false,
+      isDemo: true // Mark as demo ticket
+    };
+    
+    // Add to mock tickets for future reference
+    mockTickets.push(ticket);
+  }
+  
+  console.log('Found/created ticket:', ticket);
+  return ticket;
 };
 
 const ticketService = {
@@ -113,19 +264,39 @@ const ticketService = {
         throw new Error('You must be logged in to purchase tickets');
       }
       
-      // Check if event exists and has ticket types
-      const ticketTypes = mockTicketTypes[eventId];
+      console.log('Purchasing tickets:', { eventId, ticketTypeId, quantity });
       
-      if (!ticketTypes) {
-        throw new Error('Event not found or tickets not available');
+      // Check if event exists and has ticket types
+      let ticketTypes = mockTicketTypes[eventId];
+      
+      // If no ticket types found, create a default one
+      if (!ticketTypes || ticketTypes.length === 0) {
+        console.log('No ticket types found, creating default ticket type');
+        const defaultTicketType = {
+          id: `default-${eventId}`,
+          eventId: eventId,
+          name: 'Standard Admission',
+          price: 99.99, // Default price
+          available: 100,
+          sold: 0,
+          description: 'Standard admission to the event'
+        };
+        
+        mockTicketTypes[eventId] = [defaultTicketType];
+        ticketTypes = [defaultTicketType];
       }
       
       // Find the ticket type
-      const ticketType = ticketTypes.find(tt => tt.id === ticketTypeId);
+      let ticketType = ticketTypes.find(tt => tt.id === ticketTypeId);
       
+      // If ticket type not found, use the first available one
       if (!ticketType) {
-        throw new Error('Invalid ticket type');
+        console.log('Ticket type not found, using first available ticket type');
+        ticketType = ticketTypes[0];
+        ticketTypeId = ticketType.id;
       }
+      
+      console.log('Selected ticket type:', ticketType);
       
       // Check if enough tickets are available
       if (ticketType.available - ticketType.sold < quantity) {
@@ -144,27 +315,51 @@ const ticketService = {
         const qrCodeData = `TKT-${eventId}-${user.id}-${timestamp}-${i}`;
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrCodeData}`;
         
+        // Ensure price is a valid number
+        const price = typeof ticketType.price === 'number' ? ticketType.price : 
+                     parseFloat(ticketType.price) || 0;
+        
+        // Try to get event title from mock events
+        let eventTitle = 'Event';
+        try {
+          // Get event using the helper function that always returns an event
+          const event = getEventById(eventId);
+          eventTitle = event.title;
+          
+          // Log success
+          console.log('Found event for ticket:', event.title);
+        } catch (err) {
+          console.log('Error getting event data:', err);
+          console.log('Using default event title');
+        }
+        
         const ticket = {
           id: ticketId,
+          _id: ticketId,
           eventId,
+          eventTitle,
           userId: user.id,
           ticketType: ticketType.name,
           ticketTypeId,
-          price: ticketType.price,
+          price: price,
           status: 'confirmed',
           purchaseDate: new Date().toISOString(),
           qrCode: qrCodeUrl,
           ticketNumber,
           seatInfo: null,
-          checked: false
+          checked: false,
+          isDemo: false // Mark as a real purchased ticket, not a demo
         };
         
         tickets.push(ticket);
-        mockTickets.push(ticket);
+        // Add to userPurchasedTickets array instead of mockTickets
+        userPurchasedTickets.push(ticket);
       }
       
       // Update ticket type sold count
       ticketType.sold += quantity;
+      
+      console.log('Tickets created successfully:', tickets);
       
       return mockDelay({
         message: `Successfully purchased ${quantity} tickets`,
@@ -172,7 +367,8 @@ const ticketService = {
         totalAmount: ticketType.price * quantity
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to purchase tickets');
+      console.error('Error purchasing tickets:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to purchase tickets');
     }
   },
   
@@ -187,8 +383,11 @@ const ticketService = {
         throw new Error('You must be logged in to view your tickets');
       }
       
-      // Filter tickets for the current user
-      let userTickets = mockTickets.filter(t => t.userId === user.id);
+      // Only return tickets that were actually purchased by the current user
+      // Filter out demo tickets (those with isDemo=true)
+      let userTickets = userPurchasedTickets.filter(t => 
+        t.userId === user.id && !t.isDemo
+      );
       
       // Apply status filter if provided
       if (options.status) {
@@ -212,10 +411,21 @@ const ticketService = {
   // Get a single ticket
   getTicket: async (ticketId) => {
     try {
-      const response = await api.get(`/tickets/${ticketId}`);
-      return response.data;
+      // Try to get from API first
+      try {
+        const response = await api.get(`/tickets/${ticketId}`);
+        return response.data;
+      } catch (apiError) {
+        console.log('API call failed, falling back to mock data');
+        
+        // Find the ticket in mock data
+        const ticket = getTicketById(ticketId);
+        
+        return mockDelay(ticket);
+      }
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch ticket');
+      console.error('Error in getTicket:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch ticket');
     }
   },
   
@@ -240,12 +450,8 @@ const ticketService = {
         throw new Error('You must be logged in to generate ticket QR codes');
       }
       
-      // Find ticket
-      const ticket = mockTickets.find(t => t.id === ticketId);
-      
-      if (!ticket) {
-        throw new Error('Ticket not found');
-      }
+      // Find ticket with proper ID comparison
+      const ticket = getTicketById(ticketId);
       
       // Check if user owns the ticket
       if (ticket.userId !== user.id && user.role !== 'organizer' && user.role !== 'admin') {
@@ -263,11 +469,11 @@ const ticketService = {
       return mockDelay({
         qrCodeUrl: ticket.qrCode,
         ticketNumber: ticket.ticketNumber,
-        ticketId: ticket.id,
+        ticketId: ticket.id || ticket._id,
         eventId: ticket.eventId
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to generate QR code');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to generate QR code');
     }
   },
   

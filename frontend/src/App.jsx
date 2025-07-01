@@ -246,7 +246,6 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
-      </div>
 
       {/* Chatbot code starts */}
       <div className={`container ${showChatbot ? "show-chatbot" : ""}`}>

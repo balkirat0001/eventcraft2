@@ -494,7 +494,7 @@ const OrganizerDashboard = () => {
                                 variant="secondary" 
                                 size="sm" 
                                 className="flex-1"
-                                onClick={() => navigate(`/events/${event._id}/edit`)}
+                                onClick={() => navigate(`/event/${event._id}/edit`)}
                               >
                                 <PencilIcon className="w-4 h-4 mr-1" />
                                 Edit
@@ -504,7 +504,7 @@ const OrganizerDashboard = () => {
                                 variant="outline" 
                                 size="sm" 
                                 className="flex-1"
-                                onClick={() => navigate(`/events/${event._id}`)}
+                                onClick={() => navigate(`/event/${event._id}`)}
                               >
                                 <EyeIcon className="w-4 h-4 mr-1" />
                                 View

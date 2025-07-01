@@ -385,6 +385,16 @@ const Settings = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      {/* Debug Info - Remove this in production */}
+      {/* <div className="mb-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+        <h3 className="font-semibold text-yellow-800 mb-2">Debug Info:</h3>
+        <p className="text-sm text-yellow-700">
+          Current User: {user ? `${user.name} (${user.email}) - Role: ${user.role}` : 'No user logged in'}
+        </p>
+        <p className="text-sm text-yellow-700">
+          API URL: {import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}
+        </p>
+      </div> */}
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>

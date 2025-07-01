@@ -37,12 +37,12 @@ const UserManagementTest = () => {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-blue-700 mb-6">User Management Test</h1>
         
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        {/* <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Debug Info</h2>
           <p className="mb-2">Status: {message}</p>
           <p className="mb-2">Users Count: {users.length}</p>
           {error && <p className="text-red-600">Error: {error}</p>}
-        </div>
+        </div> */}
         
         {users.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
