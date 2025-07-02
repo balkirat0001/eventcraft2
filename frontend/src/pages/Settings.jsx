@@ -12,6 +12,7 @@ import {
   ShieldCheckIcon,
   CogIcon
 } from '@heroicons/react/24/outline';
+import notificationService from '../services/notificationService';
 
 // Create fallback notification functions
 const createFallbackNotification = () => {
@@ -43,10 +44,10 @@ const Settings = () => {
     notificationFunctions = createFallbackNotification();
   }
   
-  const { success, error: showError } = notificationFunctions;
+  const { success: useNotificationSuccess, error: useNotificationError } = notificationFunctions;
 
   const [activeTab, setActiveTab] = useState('notifications');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Notification preferences
   const [notificationPrefs, setNotificationPrefs] = useState({
@@ -75,6 +76,53 @@ const Settings = () => {
   const [theme, setTheme] = useState(user?.theme || 'light');
   const [language, setLanguage] = useState(user?.language || 'english');
 
+  // Notification service
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(true);
+  const [showEmail, setShowEmail] = useState(false);
+  const [showPhone, setShowPhone] = useState(false);
+  const [eventTypes, setEventTypes] = useState([]);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
+  // Available event categories
+  const availableEventTypes = [
+    'technology', 'business', 'music', 'art', 'sports', 'education', 'food', 'health', 'social', 'other'
+  ];
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setLoading(true);
+        // Fetch notification preferences
+        const preferencesResponse = await notificationService.getPreferences();
+        const preferences = preferencesResponse.preferences;
+        
+        // Set form values
+        setEmailNotifications(preferences.notifications.email);
+        setSmsNotifications(preferences.notifications.sms);
+        setEventTypes(preferences.eventTypes || []);
+        setShowEmail(preferences.privacy?.showEmail || false);
+        setShowPhone(preferences.privacy?.showPhone || false);
+        
+        // Get user profile for phone number
+        const profile = await userService.getUserProfile();
+        setPhoneNumber(profile.phone || '');
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        setError('Failed to load settings. Please try again.');
+        setLoading(false);
+      }
+    };
+    
+    if (user) {
+      fetchSettings();
+    }
+  }, [user]);
+
   // Handle notification preference change
   const handleNotificationPrefChange = (key, value) => {
     setNotificationPrefs(prev => ({
@@ -99,29 +147,57 @@ const Settings = () => {
     }));
   };
 
-  // Save settings
-  const handleSaveSettings = async () => {
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
     try {
       setLoading(true);
-      const updatedUser = {
-        ...user,
-        notificationPrefs,
-        privacySettings,
-        accountSettings,
-        theme,
-        language
-      };
+      setError(null);
       
-      // Update user in backend
-      const response = await userService.updateProfile(updatedUser);
+      // Update notification preferences
+      await notificationService.updatePreferences({
+        email: emailNotifications,
+        sms: smsNotifications,
+        eventTypes: eventTypes,
+        showEmail: showEmail,
+        showPhone: showPhone
+      });
       
-      // Update user in Redux
-      dispatch(setUser(response.data));
+      // Update phone number if provided
+      if (phoneNumber) {
+        await userService.updateUserProfile({
+          phone: phoneNumber
+        });
+      }
       
-      success('Settings saved successfully');
-    } catch (err) {
-      showError(err.message || 'Failed to save settings');
-    } finally {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      setError('Failed to update settings. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleEventTypeChange = (eventType) => {
+    if (eventTypes.includes(eventType)) {
+      setEventTypes(eventTypes.filter(type => type !== eventType));
+    } else {
+      setEventTypes([...eventTypes, eventType]);
+    }
+  };
+  
+  const handleTestNotification = async (type) => {
+    try {
+      setLoading(true);
+      await notificationService.sendTestNotification(type);
+      alert(`Test ${type} notification sent successfully!`);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      alert('Failed to send test notification.');
       setLoading(false);
     }
   };
@@ -383,6 +459,16 @@ const Settings = () => {
     </div>
   );
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Please log in</h2>
+          <p>You must be logged in to access settings.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Debug Info - Remove this in production */}
@@ -454,7 +540,7 @@ const Settings = () => {
           <div className="mt-6 flex justify-end">
             <Button 
               variant="primary" 
-              onClick={handleSaveSettings}
+              onClick={handleSubmit}
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save Settings'}

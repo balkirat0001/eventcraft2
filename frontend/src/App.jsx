@@ -192,6 +192,11 @@ const App = () => {
                 <CalendarView />
               </ProtectedRoute>
             } />
+            <Route path="/attendee/tickets/:ticketId" element={
+              <ProtectedRoute requiredRoles={['attendee', 'organizer', 'admin']}>
+              <TicketDetail />
+            </ProtectedRoute>
+            } />
 
             {/* Organizer Routes */}
             <Route path="/organizer/dashboard" element={

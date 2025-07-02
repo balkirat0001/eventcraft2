@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const { checkJwt } = require('./middleware/auth');
 const path = require('path');
+const { initializeSchedulers } = require('./services/notificationScheduler');
 
 // Load environment variables
 dotenv.config();
@@ -73,4 +74,10 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+
+    // Initialize notification schedulers
+  if (process.env.NODE_ENV === 'production') {
+    initializeSchedulers();
+    console.log('Notification services initialized');
+  }
 });

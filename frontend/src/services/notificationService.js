@@ -127,6 +127,74 @@ class MockSocketConnection {
 const socketInstance = new MockSocketConnection();
 
 const notificationService = {
+  /**
+   * Get user notification preferences
+   */
+  getPreferences: async () => {
+    try {
+      const response = await api.get('/notifications/preferences');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching notification preferences:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch notification preferences');
+    }
+  },
+
+  /**
+   * Update user notification preferences
+   * 
+   * @param {Object} preferences - The notification preferences
+   * @param {boolean} preferences.email - Whether to receive email notifications
+   * @param {boolean} preferences.sms - Whether to receive SMS notifications
+   * @param {Array<string>} preferences.eventTypes - Types of events to receive notifications for
+   * @param {boolean} preferences.showEmail - Whether to show email to other users
+   * @param {boolean} preferences.showPhone - Whether to show phone number to other users
+   */
+  updatePreferences: async (preferences) => {
+    try {
+      const response = await api.put('/notifications/preferences', preferences);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      throw new Error(error.response?.data?.message || 'Failed to update notification preferences');
+    }
+  },
+
+  /**
+   * Send notification to event attendees
+   * 
+   * @param {Object} notification - The notification to send
+   * @param {string} notification.eventId - The ID of the event
+   * @param {string} notification.title - The notification title
+   * @param {string} notification.message - The notification message
+   * @param {string} notification.notificationType - The type of notification (email, sms, or both)
+   * @param {boolean} notification.sendToAll - Whether to send to all attendees or only those matching preferences
+   */
+  sendEventNotification: async (notification) => {
+    try {
+      const response = await api.post('/notifications/send', notification);
+      return response.data;
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      throw new Error(error.response?.data?.message || 'Failed to send notification');
+    }
+  },
+
+  /**
+   * Send test notification (development only)
+   * 
+   * @param {string} type - The type of notification to test (email, sms, or both)
+   */
+  sendTestNotification: async (type) => {
+    try {
+      const response = await api.post('/notifications/test', { type });
+      return response.data;
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      throw new Error(error.response?.data?.message || 'Failed to send test notification');
+    }
+  },
+
   // Get user notifications
   getNotifications: async () => {
     try {
