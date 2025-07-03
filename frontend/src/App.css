@@ -40,3 +40,99 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Calendar Styles */
+table.w-full {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.w-full th {
+  background-color: #f0f7ff;
+  padding: 12px;
+  text-align: center;
+  font-weight: 500;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+}
+
+table.w-full td {
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+  height: 120px;
+  padding: 8px;
+}
+
+table.w-full td.bg-blue-50 {
+  background-color: #f0f9ff;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.text-blue-600 {
+  color: #3b82f6;
+}
+
+.text-blue-800 {
+  color: #1e40af;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.space-y-1 > * + * {
+  margin-top: 0.25rem;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.bg-blue-600 {
+  background-color: #3b82f6;
+}
+
+.text-white {
+  color: white;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+/* Responsive calendar adjustments */
+@media (max-width: 768px) {
+  table.w-full td {
+    height: 100px;
+    padding: 4px;
+  }
+  
+  .flex-col.space-y-1 {
+    gap: 4px;
+  }
+  
+  .text-xs {
+    font-size: 0.7rem;
+  }
+}

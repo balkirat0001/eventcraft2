@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { adminService } from '../services/adminService';
+import { adminService, approveEvent, rejectEvent, getPendingEvents } from '../services/adminService';
 
 const AdminDashboard = () => {
   const user = useSelector((state) => state.user.user);
@@ -35,6 +35,9 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [processingEvent, setProcessingEvent] = useState(null);
   const [error, setError] = useState(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   // Set admin role for API requests
   useEffect(() => {
@@ -65,9 +68,9 @@ const AdminDashboard = () => {
 
       // Fetch pending events
       console.log('Fetching pending events...');
-      const eventsData = await adminService.getPendingEvents();
+      const eventsData = await getPendingEvents();
       console.log('Events data:', eventsData);
-      setPendingEvents(eventsData?.events || eventsData || []);
+      setPendingEvents(eventsData?.events || []);
 
       // Fetch revenue data
       console.log('Fetching revenue data...');
@@ -91,11 +94,19 @@ const AdminDashboard = () => {
   };
 
   const handleApproveEvent = async (eventId) => {
-    setProcessingEvent(eventId);
     try {
-      await adminService.approveEvent(eventId);
-      // Refresh data
-      await fetchAdminData();
+      setProcessingEvent(eventId);
+      await approveEvent(eventId);
+      
+      // Remove approved event from list and update UI
+      setPendingEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
+      
+      // Update stats if they exist
+      setStats(prev => ({
+        ...prev,
+        pendingEvents: (prev.pendingEvents || 0) - 1
+      }));
+      
       alert('Event approved successfully!');
     } catch (error) {
       console.error('Error approving event:', error);
@@ -105,15 +116,33 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleRejectEvent = async (eventId) => {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (!reason) return;
-    
-    setProcessingEvent(eventId);
+  const handleRejectClick = (event) => {
+    setSelectedEvent(event);
+    setShowRejectModal(true);
+  };
+
+  const handleRejectEvent = async () => {
+    if (!selectedEvent || !rejectionReason.trim()) {
+      alert('Please provide a rejection reason.');
+      return;
+    }
+
     try {
-      await adminService.rejectEvent(eventId, reason);
-      // Refresh data
-      await fetchAdminData();
+      setProcessingEvent(selectedEvent._id);
+      await rejectEvent(selectedEvent._id, rejectionReason);
+      
+      // Remove rejected event from list and update UI
+      setPendingEvents(prevEvents => prevEvents.filter(event => event._id !== selectedEvent._id));
+      
+      // Update stats if they exist
+      setStats(prev => ({
+        ...prev,
+        pendingEvents: (prev.pendingEvents || 0) - 1
+      }));
+      
+      setShowRejectModal(false);
+      setSelectedEvent(null);
+      setRejectionReason('');
       alert('Event rejected successfully!');
     } catch (error) {
       console.error('Error rejecting event:', error);
@@ -502,7 +531,7 @@ const AdminDashboard = () => {
                     variant="secondary"
                     size="sm"
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white border-red-600"
-                    onClick={() => handleRejectEvent(event._id)}
+                    onClick={() => handleRejectClick(event)}
                     disabled={processingEvent === event._id}
                   >
                     {processingEvent === event._id ? (
@@ -644,6 +673,37 @@ const AdminDashboard = () => {
           </Card>
         </motion.div>
       </div>
+
+      {/* Reject Event Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Reject Event</h2>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Enter rejection reason"
+              className="w-full p-2 border border-gray-300 rounded-lg"
+            />
+            <div className="mt-4 flex space-x-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowRejectModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleRejectEvent}
+              >
+                Reject
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

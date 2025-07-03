@@ -1,109 +1,61 @@
 # EventCraft
 
-EventCraft is a comprehensive event management platform that allows users to create, discover, and register for events. The application is built with a React frontend and Node.js/Express backend.
+EventCraft is an event management platform with role-based access for attendees, organizers, and admins.
 
 ## Features
 
-- Auth0 Authentication
-- User roles (Attendee, Organizer, Admin)
-- Event creation and management
-- Ticket purchasing and management
-- User profiles
-- Admin dashboard
+- **Authentication**: Auth0 integration with JWT tokens for secure user management
+- **Events**: Create, discover, manage, and register for events
+- **Tickets**: Purchase and manage tickets with multiple types and pricing
+- **Role-Based Access**: Different capabilities for attendees, organizers, and admins
+- **Admin Controls**: Event approval workflow, user management, analytics
 
 ## Tech Stack
 
-### Frontend
-- React
-- Redux Toolkit
-- React Router
-- Tailwind CSS
-- Framer Motion
-- Auth0
+**Frontend**: React, Redux Toolkit, Tailwind CSS, Auth0 SDK  
+**Backend**: Node.js, Express, JWT  
+**Database**: MongoDB with Mongoose
 
-### Backend
-- Node.js
-- Express
-- MongoDB
-- JWT Authentication
-- Auth0 Integration
+## Architecture
+
+```
+[Frontend (React)] <--> [Backend API (Express)] <--> [MongoDB]
+        |                        |
+        v                        v
+     [Auth0]             [External Services]
+```
+
+## How It Works
+
+### Authentication Flow
+1. User logs in via Auth0
+2. Auth0 returns JWT tokens
+3. Backend validates tokens and checks user in database
+4. Role-based access enforced via middleware
+
+### API Structure
+- **/api/auth**: User authentication and profile management
+- **/api/events**: Event CRUD operations and discovery
+- **/api/tickets**: Ticket purchasing and management
+- **/api/admin**: Admin-specific operations
+
+### Database Models
+- **User**: Profile, authentication, and role information
+- **Event**: Event details, attendees, and approval status
+- **Ticket**: Purchase records and check-in status
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js (v14+)
-- MongoDB (local or Atlas)
-- Auth0 account
-
-### Installation
-
-1. Clone the repository
+1. Clone repository
+2. Install dependencies (`npm install` in backend and frontend)
+3. Configure Auth0 (see AUTH0_SETUP.md)
+4. Set environment variables
+5. Start servers:
    ```
-   git clone https://github.com/yourusername/eventcraft.git
-   cd eventcraft
+   # Backend
+   cd backend && npm run dev
+   
+   # Frontend
+   cd frontend && npm run dev
    ```
-
-2. Install backend dependencies
-   ```
-   cd backend
-   npm install
-   ```
-
-3. Install frontend dependencies
-   ```
-   cd ../frontend
-   npm install
-   ```
-
-4. Set up environment variables
-   - Create a `.env` file in the backend directory based on `.env.example`
-   - Create a `.env` file in the frontend directory based on `.env.example`
-
-5. Set up Auth0 (see AUTH0_SETUP.md for detailed instructions)
-
-6. Start the development servers
-
-   Backend:
-   ```
-   cd backend
-   npm run dev
-   ```
-
-   Frontend:
-   ```
-   cd frontend
-   npm run dev
-   ```
-
-7. Open your browser and navigate to `http://localhost:5173`
-
-## Auth0 Setup
-
-See the [AUTH0_SETUP.md](AUTH0_SETUP.md) file for detailed instructions on setting up Auth0 authentication.
-
-## Project Structure
-
-```
-eventcraft/
-├── backend/             # Express server
-│   ├── config/          # Database configuration
-│   ├── controllers/     # Route controllers
-│   ├── middleware/      # Custom middleware
-│   ├── models/          # Mongoose models
-│   ├── routes/          # API routes
-│   └── server.js        # Server entry point
-├── frontend/            # React application
-│   ├── public/          # Static files
-│   └── src/             # Source files
-│       ├── components/  # React components
-│       ├── hooks/       # Custom hooks
-│       ├── pages/       # Page components
-│       ├── redux/       # Redux store and slices
-│       └── services/    # API services
-└── README.md            # Project documentation
-```
-
-## License
-
-This project is licensed under the MIT License.
+6. Access at http://localhost:5173 

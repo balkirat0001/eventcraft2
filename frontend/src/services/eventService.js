@@ -222,8 +222,8 @@ mockEvents.forEach(event => {
   if (event.price === undefined) event.price = 0;
 });
 
-// Helper function to simulate API delays
-const mockDelay = (data, ms = 500) => {
+// Helper function to simulate API delays - reduced delay time for better performance
+const mockDelay = (data, ms = 100) => {
   return new Promise((resolve) => {
     setTimeout(() => resolve({ data }), ms);
   });

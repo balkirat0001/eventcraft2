@@ -9,7 +9,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventcraf
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Sample users (12 users total)
+// Sample users (essential users only)
 const sampleUsers = [
   {
     auth0Id: 'auth0|admin123',
@@ -38,62 +38,6 @@ const sampleUsers = [
     email: 'jessica@artevents.com',
     role: 'organizer',
     picture: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|organizer4',
-    name: 'David Thompson',
-    email: 'david@sportsevents.com',
-    role: 'organizer',
-    picture: 'https://images.unsplash.com/photo-1566492031773-4f4e44671d66?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee1',
-    name: 'Emily Davis',
-    email: 'emily@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee2',
-    name: 'James Wilson',
-    email: 'james@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee3',
-    name: 'Lisa Brown',
-    email: 'lisa@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee4',
-    name: 'Robert Miller',
-    email: 'robert@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee5',
-    name: 'Maria Garcia',
-    email: 'maria@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee6',
-    name: 'Kevin Park',
-    email: 'kevin@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'
-  },
-  {
-    auth0Id: 'auth0|attendee7',
-    name: 'Amanda Taylor',
-    email: 'amanda@email.com',
-    role: 'attendee',
-    picture: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=150&h=150&fit=crop&crop=face'
   }
 ];
 

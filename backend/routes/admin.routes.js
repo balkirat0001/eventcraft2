@@ -385,6 +385,22 @@ router.get('/dashboard/revenue', checkJwt, checkUser, authorize('admin'), async 
   }
 });
 
+// Delete user
+router.delete('/users/:userId', checkJwt, checkUser, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Helper function to get relative time
 function getRelativeTime(date) {
   const now = new Date();

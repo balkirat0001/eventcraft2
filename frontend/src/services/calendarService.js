@@ -1,7 +1,8 @@
 import authService from './authService';
+import { getEventById, mockEvents } from './eventService';
 
-// Helper function to simulate API delays
-const mockDelay = (data, ms = 500) => {
+// Helper function to simulate API delays - reduced delay time for better performance
+const mockDelay = (data, ms = 100) => {
   return new Promise((resolve) => {
     setTimeout(() => resolve({ data }), ms);
   });
@@ -54,6 +55,11 @@ const calendarService = {
   addToCalendar: async (eventId) => {
     try {
       // In a real app: const response = await api.post(`/calendar/events/${eventId}`);
+      console.log('Adding event to calendar, ID:', eventId);
+      
+      if (!eventId) {
+        throw new Error('Event ID is required');
+      }
       
       const user = authService.getCurrentUser();
       
@@ -61,35 +67,19 @@ const calendarService = {
         throw new Error('You must be logged in to add events to your calendar');
       }
       
-      // Check if event exists in mock events
-      const mockEvents = [
-        {
-          id: 'e001',
-          title: 'Tech Conference 2024',
-          description: 'Annual tech conference with industry leaders',
-          date: '2024-11-15T09:00:00',
-          endDate: '2024-11-17T18:00:00',
-          location: 'Convention Center, New York',
-        },
-        {
-          id: 'e002',
-          title: 'Music Festival',
-          description: 'Three-day music festival featuring top artists',
-          date: '2024-08-20T14:00:00',
-          endDate: '2024-08-22T23:00:00',
-          location: 'Central Park, New York',
-        }
-      ];
-      
-      const event = mockEvents.find(e => e.id === eventId);
+      // Use the helper function from eventService to get the event
+      const event = getEventById(eventId);
       
       if (!event) {
-        throw new Error('Event not found');
+        throw new Error(`Event not found with ID: ${eventId}`);
       }
+      
+      console.log('Found event to add to calendar:', event);
       
       // Check if event is already in calendar
       const existingCalendarEvent = mockCalendarEvents.find(
-        ce => ce.eventId === eventId && ce.userId === user.id
+        ce => (ce.eventId === eventId || ce.eventId === event.id || ce.eventId === event._id) && 
+              ce.userId === user.id
       );
       
       if (existingCalendarEvent) {
@@ -100,7 +90,7 @@ const calendarService = {
       const newCalendarEvent = {
         id: 'cal' + Math.floor(Math.random() * 10000),
         userId: user.id,
-        eventId,
+        eventId: event.id || event._id,
         eventTitle: event.title,
         startDate: event.date,
         endDate: event.endDate,
@@ -130,7 +120,7 @@ const calendarService = {
         {
           id: newCalendarEvent.reminders[0].id,
           userId: user.id,
-          eventId,
+          eventId: event.id || event._id,
           eventTitle: event.title,
           reminderTime: oneDayBefore.toISOString(),
           message: `Reminder: ${event.title} starts tomorrow at ${startDate.toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'})}`,
@@ -140,7 +130,7 @@ const calendarService = {
         {
           id: newCalendarEvent.reminders[1].id,
           userId: user.id,
-          eventId,
+          eventId: event.id || event._id,
           eventTitle: event.title,
           reminderTime: twoHoursBefore.toISOString(),
           message: `Reminder: ${event.title} starts in 2 hours`,
@@ -161,7 +151,8 @@ const calendarService = {
         icsFile: icsContent
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to add event to calendar');
+      console.error('Error in addToCalendar:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to add event to calendar');
     }
   },
   
@@ -205,7 +196,7 @@ const calendarService = {
         calendarEvent
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to remove event from calendar');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to remove event from calendar');
     }
   },
   
@@ -237,7 +228,7 @@ const calendarService = {
       
       return mockDelay(userEvents);
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch calendar events');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch calendar events');
     }
   },
   
@@ -245,6 +236,15 @@ const calendarService = {
   addReminder: async (eventId, reminderData) => {
     try {
       // In a real app: const response = await api.post(`/calendar/events/${eventId}/reminders`, reminderData);
+      console.log('Adding reminder for event, ID:', eventId);
+      
+      if (!eventId) {
+        throw new Error('Event ID is required');
+      }
+      
+      if (!reminderData || !reminderData.minutesBefore) {
+        throw new Error('Reminder data is required with minutesBefore specified');
+      }
       
       const user = authService.getCurrentUser();
       
@@ -252,13 +252,58 @@ const calendarService = {
         throw new Error('You must be logged in to set reminders');
       }
       
+      // Find event using helper function
+      const event = getEventById(eventId);
+      
+      if (!event) {
+        throw new Error(`Event not found with ID: ${eventId}`);
+      }
+      
+      console.log('Found event for reminder:', event);
+      
       // Find calendar event
-      const calendarEvent = mockCalendarEvents.find(
-        ce => ce.eventId === eventId && ce.userId === user.id
+      let calendarEvent = mockCalendarEvents.find(
+        ce => (ce.eventId === eventId || ce.eventId === event.id || ce.eventId === event._id) && 
+              ce.userId === user.id
       );
       
+      // If event is not in calendar yet, add it first
       if (!calendarEvent) {
-        throw new Error('Event not found in your calendar');
+        try {
+          // Create a new calendar event directly instead of calling another method
+          calendarEvent = {
+            id: 'cal' + Math.floor(Math.random() * 10000),
+            userId: user.id,
+            eventId: event.id || event._id,
+            eventTitle: event.title,
+            startDate: event.date,
+            endDate: event.endDate || (event.date ? new Date(new Date(event.date).getTime() + 3600000).toISOString() : new Date(Date.now() + 3600000).toISOString()),
+            location: event.location || 'Location TBD',
+            addedOn: new Date().toISOString(),
+            reminders: []
+          };
+          
+          // Add to mock calendar events
+          mockCalendarEvents.push(calendarEvent);
+          
+          console.log('Created new calendar event:', calendarEvent);
+        } catch (error) {
+          console.error('Failed to create calendar event:', error);
+          
+          // Create a minimal calendar event as fallback
+          calendarEvent = {
+            id: 'cal' + Math.floor(Math.random() * 10000),
+            userId: user.id,
+            eventId: eventId,
+            eventTitle: event ? event.title : 'Event',
+            startDate: event && event.date ? event.date : new Date().toISOString(),
+            addedOn: new Date().toISOString(),
+            reminders: []
+          };
+          
+          // Add to mock calendar events
+          mockCalendarEvents.push(calendarEvent);
+        }
       }
       
       // Create new reminder
@@ -280,7 +325,7 @@ const calendarService = {
       const newReminder = {
         id: reminderId,
         userId: user.id,
-        eventId,
+        eventId: calendarEvent.eventId,
         eventTitle: calendarEvent.eventTitle,
         reminderTime: reminderDate.toISOString(),
         message: reminderData.message || `Reminder: ${calendarEvent.eventTitle} starts in ${reminderData.minutesBefore} minutes`,
@@ -296,7 +341,8 @@ const calendarService = {
         reminder: newReminder
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to add reminder');
+      console.error('Error in addReminder:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to add reminder');
     }
   },
   
@@ -344,7 +390,7 @@ const calendarService = {
         reminder
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to remove reminder');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to remove reminder');
     }
   },
   
@@ -374,7 +420,7 @@ const calendarService = {
       
       return mockDelay(upcomingReminders);
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch upcoming reminders');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to fetch upcoming reminders');
     }
   },
   
@@ -425,7 +471,7 @@ END:VEVENT
         filename: `eventcraft-calendar-${new Date().getTime()}.ics`
       });
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to export calendar');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to export calendar');
     }
   }
 };
@@ -437,8 +483,22 @@ const formatDateForICS = (date) => {
 
 // Helper function to generate ICS file for a single event
 const generateICSFile = (event) => {
+  if (!event) {
+    console.error('Cannot generate ICS file: Event is undefined');
+    return '';
+  }
+  
+  if (!event.date) {
+    console.error('Cannot generate ICS file: Event date is missing', event);
+    // Use current date as fallback
+    event.date = new Date().toISOString();
+  }
+  
   const startDate = new Date(event.date);
-  const endDate = new Date(event.endDate);
+  const endDate = event.endDate ? new Date(event.endDate) : new Date(startDate.getTime() + 3600000); // Default to 1 hour
+  
+  const eventId = event.id || event._id || `event-${Date.now()}`;
+  const eventTitle = event.title || 'Untitled Event';
   
   return `BEGIN:VCALENDAR
 VERSION:2.0
@@ -446,11 +506,11 @@ PRODID:-//EventCraft//EventCraftF//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
-UID:${event.id}@eventcraft.com
+UID:${eventId}@eventcraft.com
 DTSTAMP:${formatDateForICS(new Date())}
 DTSTART:${formatDateForICS(startDate)}
 DTEND:${formatDateForICS(endDate)}
-SUMMARY:${event.title}
+SUMMARY:${eventTitle}
 DESCRIPTION:${event.description || ''}
 LOCATION:${event.location || ''}
 END:VEVENT

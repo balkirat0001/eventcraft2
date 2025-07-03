@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import eventService from '../services/eventService';
+import calendarService from '../services/calendarService';
+import { useNotification } from '../components/NotificationContext';
+import Button from '../components/ui/Button';
 
 const CalendarView = () => {
   const [events, setEvents] = useState([]);
@@ -7,10 +10,10 @@ const CalendarView = () => {
   const [error, setError] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const notification = useNotification();
 
+  // Fetch events only once when component mounts
   useEffect(() => {
-    // Set appropriate role for viewing events
-    localStorage.setItem('userRole', 'attendee');
     fetchEvents();
   }, []);
 
@@ -36,36 +39,123 @@ const CalendarView = () => {
     }
   };
 
-  // Filter events by selected month and year
-  const filteredEvents = events.filter(event => {
-    if (!event.date) return false;
-    const eventDate = new Date(event.date);
-    return eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear;
-  });
+  // Add event to calendar - optimized to prevent UI blocking
+  const handleAddToCalendar = async (event) => {
+    try {
+      if (!event || (!event.id && !event._id)) {
+        notification.error('Invalid event data. Cannot add to calendar.');
+        console.error('Invalid event data:', event);
+        return;
+      }
 
-  // Group events by date
-  const eventsByDate = filteredEvents.reduce((acc, event) => {
-    const dateKey = new Date(event.date).toDateString();
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
+      const eventId = event.id || event._id;
+      notification.info(`Adding ${event.title} to calendar...`);
+      const result = await calendarService.addToCalendar(eventId);
+      notification.success('Event added to calendar successfully!');
+      
+      // Trigger download of ICS file
+      const blob = new Blob([result.icsFile], { type: 'text/calendar' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${event.title}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error adding event to calendar:', error);
+      notification.error(error.message || 'Failed to add event to calendar');
     }
-    acc[dateKey].push(event);
-    return acc;
-  }, {});
+  };
 
-  // Generate calendar days
-  const generateCalendarDays = () => {
+  // Add custom reminder - optimized to prevent UI blocking
+  const handleAddReminder = async (event, minutesBefore) => {
+    try {
+      if (!event || (!event.id && !event._id)) {
+        notification.error('Invalid event data. Cannot set reminder.');
+        console.error('Invalid event data:', event);
+        return;
+      }
+
+      const eventId = event.id || event._id;
+      notification.info(`Setting reminder for ${event.title}...`);
+      await calendarService.addReminder(eventId, {
+        minutesBefore,
+        message: `Reminder: ${event.title} starts in ${minutesBefore} minutes`
+      });
+      notification.success('Reminder set successfully!');
+    } catch (error) {
+      console.error('Error setting reminder:', error);
+      notification.error(error.message || 'Failed to set reminder');
+    }
+  };
+
+  // Memoize filtered events to prevent recalculation on every render
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => {
+      if (!event.date) return false;
+      const eventDate = new Date(event.date);
+      return eventDate.getMonth() === selectedMonth && eventDate.getFullYear() === selectedYear;
+    });
+  }, [events, selectedMonth, selectedYear]);
+
+  // Memoize events grouped by date
+  const eventsByDate = useMemo(() => {
+    return filteredEvents.reduce((acc, event) => {
+      const dateKey = new Date(event.date).toDateString();
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(event);
+      return acc;
+    }, {});
+  }, [filteredEvents]);
+
+  // Generate calendar grid - memoized to prevent recalculation
+  const calendarDays = useMemo(() => {
     const firstDay = new Date(selectedYear, selectedMonth, 1);
     const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    const totalDays = lastDay.getDate();
+    const firstDayOfWeek = firstDay.getDay();
     
+    // Create weeks array (6 rows maximum for a month)
+    const weeks = [];
+    let dayCount = 1;
+    
+    // Loop through weeks (max 6 weeks per month)
+    for (let weekIndex = 0; weekIndex < 6; weekIndex++) {
     const days = [];
-    for (let d = new Date(startDate); d <= lastDay || days.length < 42; d.setDate(d.getDate() + 1)) {
-      days.push(new Date(d));
+    
+      // Loop through days of the week
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        // Skip days before the first day of the month
+        if (weekIndex === 0 && dayIndex < firstDayOfWeek) {
+          days.push(null);
+          continue;
+        }
+        
+        // Stop after we've added all days of the month
+        if (dayCount > totalDays) {
+          days.push(null);
+          continue;
+        }
+        
+        // Add the day
+        days.push(dayCount);
+        dayCount++;
+      }
+      
+      weeks.push(days);
+      
+      // Break if we've added all days
+      if (dayCount > totalDays) {
+        break;
+      }
     }
-    return days;
-  };
+    
+    return weeks;
+  }, [selectedMonth, selectedYear]);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -86,17 +176,20 @@ const CalendarView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-white p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold text-blue-700">📆 Event Calendar</h2>
+        <div className="flex items-center mb-6">
+          <div className="text-3xl mr-3">📅</div>
+          <h2 className="text-3xl font-bold text-blue-600">Event Calendar</h2>
+          <div className="ml-auto">
           <button 
             onClick={fetchEvents}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Refresh
           </button>
+          </div>
         </div>
 
         {error && (
@@ -105,9 +198,8 @@ const CalendarView = () => {
           </div>
         )}
 
-        {/* Month/Year Selector */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex items-center justify-between">
+        {/* Month Navigation */}
+        <div className="flex justify-between items-center mb-6 px-4">
             <button
               onClick={() => {
                 if (selectedMonth === 0) {
@@ -117,12 +209,12 @@ const CalendarView = () => {
                   setSelectedMonth(selectedMonth - 1);
                 }
               }}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
             >
               ← Prev
             </button>
             
-            <h3 className="text-xl font-semibold text-gray-900">
+          <h3 className="text-2xl font-semibold text-gray-900">
               {monthNames[selectedMonth]} {selectedYear}
             </h3>
             
@@ -135,66 +227,75 @@ const CalendarView = () => {
                   setSelectedMonth(selectedMonth + 1);
                 }
               }}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
             >
               Next →
             </button>
-          </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 bg-blue-50">
+        {/* Calendar Table */}
+        <table className="w-full border-collapse mb-8">
+          <thead>
+            <tr>
             {dayNames.map(day => (
-              <div key={day} className="p-3 text-center font-medium text-gray-700">
+                <th key={day} className="p-2 bg-blue-50 border text-gray-700">
                 {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar days */}
-          <div className="grid grid-cols-7">
-            {generateCalendarDays().map((day, index) => {
-              const dateKey = day.toDateString();
-              const dayEvents = eventsByDate[dateKey] || [];
-              const isCurrentMonth = day.getMonth() === selectedMonth;
-              const isToday = day.toDateString() === new Date().toDateString();
-              
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[120px] p-2 border border-gray-200 ${
-                    !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'
-                  } ${isToday ? 'bg-blue-50 border-blue-300' : ''}`}
-                >
-                  <div className={`text-sm font-medium mb-1 ${
-                    isToday ? 'text-blue-600' : isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                  }`}>
-                    {day.getDate()}
-                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {calendarDays.map((week, weekIndex) => (
+              <tr key={weekIndex}>
+                {week.map((day, dayIndex) => {
+                  if (day === null) {
+                    return <td key={dayIndex} className="border p-2"></td>;
+                  }
                   
-                  <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event, eventIndex) => (
-                      <div
-                        key={eventIndex}
-                        className="text-xs p-1 bg-blue-100 text-blue-800 rounded truncate cursor-pointer hover:bg-blue-200"
-                        title={`${event.title} - ${event.location}`}
-                      >
-                        {event.title}
-                      </div>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-gray-500">
-                        +{dayEvents.length - 3} more
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  const date = new Date(selectedYear, selectedMonth, day).toDateString();
+                  const dayEvents = eventsByDate[date] || [];
+                  const isToday = new Date().toDateString() === date;
+                  
+                  return (
+                    <td key={dayIndex} className={`border p-2 align-top ${isToday ? 'bg-blue-50' : ''}`}>
+                      <div className="font-medium">{day}</div>
+                      {dayEvents.length > 0 && (
+                        <div className="mt-1">
+                          <div className="text-blue-600 text-sm">
+                            {dayEvents.length === 1 ? '1 event' : `${dayEvents.length} events`}
+              </div>
+                          <div className="text-blue-800 text-sm font-medium">
+                            {dayEvents[0].title}
+          </div>
+                          <div className="mt-1 flex flex-col space-y-1">
+                            <button
+                              onClick={() => {
+                                console.log('Event data:', dayEvents[0]);
+                                handleAddToCalendar(dayEvents[0]);
+                              }}
+                              className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
+                            >
+                              Add to Calendar
+                            </button>
+                            <button
+                              onClick={() => {
+                                console.log('Event data:', dayEvents[0]);
+                                handleAddReminder(dayEvents[0], 60);
+                              }}
+                              className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
+                            >
+                              Remind
+                            </button>
           </div>
         </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
         {/* Upcoming Events List */}
         <div className="mt-8">
@@ -206,21 +307,38 @@ const CalendarView = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredEvents
                 .sort((a, b) => new Date(a.date) - new Date(b.date))
+                .slice(0, 6)
                 .map((event) => (
                   <div
-                    key={event._id}
+                    key={event._id || event.id}
                     className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-600 hover:shadow-lg transition-shadow"
                   >
                     <h4 className="text-lg font-semibold text-blue-800 mb-2">
                       {event.title}
                     </h4>
                     <div className="space-y-1 text-sm text-gray-600">
-                      <p>📅 {new Date(event.date).toLocaleDateString()} at {new Date(event.date).toLocaleTimeString()}</p>
-                      <p>📍 {event.location}</p>
-                      <p>🎫 {event.ticketPrice ? `$${event.ticketPrice}` : 'Free'}</p>
+                      <p>📅 {new Date(event.date).toLocaleDateString()} at {new Date(event.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                      <p>📍 {event.location || 'Location TBD'}</p>
+                      <p>🎫 {event.price ? `$${event.price}` : 'Free'}</p>
                       {event.category && (
                         <p>🏷️ {event.category}</p>
                       )}
+                    </div>
+                    <div className="mt-3 flex space-x-2">
+                      <Button
+                        onClick={() => handleAddToCalendar(event)}
+                        size="sm"
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Add to Calendar
+                      </Button>
+                      <Button
+                        onClick={() => handleAddReminder(event, 60)}
+                        size="sm"
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Set Reminder
+                      </Button>
                     </div>
                   </div>
                 ))}
