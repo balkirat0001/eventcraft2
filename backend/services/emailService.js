@@ -37,7 +37,7 @@ const sendEventConfirmation = async (user, event) => {
         <li>📅 Date: ${new Date(event.date).toLocaleDateString()}</li>
         <li>🕐 Time: ${new Date(event.date).toLocaleTimeString()}</li>
         <li>📍 Location: ${event.location}</li>
-        <li>💰 Price: $${event.price}</li>
+        <li>💰 Price: $${event.ticketPrice || 0}</li>
       </ul>
       <p>Thank you for using EventCraft!</p>
     `
@@ -72,7 +72,7 @@ const sendEventApprovalNotification = async (organizer, event) => {
         <li>📅 Date: ${new Date(event.date).toLocaleDateString()}</li>
         <li>🕐 Time: ${new Date(event.date).toLocaleTimeString()}</li>
         <li>📍 Location: ${event.location}</li>
-        <li>💰 Price: $${event.price}</li>
+        <li>💰 Price: $${event.ticketPrice || 0}</li>
       </ul>
       <p>Your event is now visible to attendees and ready for registrations!</p>
     `

@@ -18,9 +18,26 @@ api.interceptors.request.use(
     }
     
     // Add mock role header for development mode
-    // In production, this would be determined by the JWT token
-    const userRole = localStorage.getItem('userRole') || 'organizer';
+    // Get user role from the user object in localStorage
+    let userRole = 'attendee'; // Default to attendee instead of organizer
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      if (user.role) {
+        userRole = user.role;
+      } else {
+        // Fallback to separate userRole item if user object doesn't have role
+        userRole = localStorage.getItem('userRole') || 'attendee';
+      }
+    } catch (e) {
+      // If parsing fails, use the separate userRole item
+      userRole = localStorage.getItem('userRole') || 'attendee';
+    }
+    
     config.headers['x-mock-role'] = userRole;
+    
+    console.log('🔧 API Request:', config.url);
+    console.log('👤 Using role:', userRole);
+    console.log('🔑 Has token:', !!token);
     
     return config;
   },
@@ -29,13 +46,22 @@ api.interceptors.request.use(
 
 // Add response interceptor to handle token expiration and other common errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API Success:', response.config?.url, response.status);
+    return response;
+  },
   (error) => {
-    // Log all errors for debugging
-    console.error(`API Error: ${error.config?.url || 'unknown endpoint'}`, error);
+    // Enhanced error logging for debugging
+    console.error('❌ API Error Details:');
+    console.error('🔗 URL:', error.config?.url || 'unknown endpoint');
+    console.error('📊 Status:', error.response?.status);
+    console.error('📄 Response Data:', error.response?.data);
+    console.error('🔧 Request Headers:', error.config?.headers);
+    console.error('📝 Full Error:', error);
 
     // Handle 401 errors (unauthorized)
     if (error.response && error.response.status === 401) {
+      console.error('🚫 Unauthorized access - redirecting to login');
       // Clear local storage and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');

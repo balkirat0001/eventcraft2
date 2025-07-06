@@ -10,6 +10,7 @@ const TicketDetail = () => {
   // Get ticketId from URL params - this will work for both route patterns
   const params = useParams();
   const ticketId = params.ticketId;
+  const eventId = params.eventId; // Will be undefined for /ticket/:ticketId route
   
   const user = useSelector(state => state.user.user);
   const navigate = useNavigate();
@@ -43,54 +44,18 @@ const TicketDetail = () => {
           console.log('Ticket data retrieved from API:', ticketData);
         } catch (ticketError) {
           console.error('Error fetching ticket from API:', ticketError);
-          
-          // Try to get from mock tickets
-          console.log('Attempting to get ticket from mock data');
-          const mockTickets = await ticketService.getUserTickets();
-          console.log('Mock tickets count:', Array.isArray(mockTickets) ? mockTickets.length : 
-                      (mockTickets.data?.length || mockTickets.tickets?.length || 'unknown'));
-          
-          // Handle various response formats
-          const ticketsArray = Array.isArray(mockTickets) 
-            ? mockTickets 
-            : mockTickets.data || mockTickets.tickets || [];
-          
-          console.log('Tickets array length:', ticketsArray.length);
-          console.log('Looking for ticket with ID:', ticketId);
-          console.log('Available ticket IDs:', ticketsArray.map(t => ({ id: t.id, _id: t._id })));
-          
-          // Try to find the ticket by id or _id
-          ticketData = ticketsArray.find(t => 
-            (t.id && t.id.toString() === ticketId.toString()) || 
-            (t._id && t._id.toString() === ticketId.toString())
-          );
-          
-          console.log('Found ticket data:', ticketData);
-          
-          if (!ticketData) {
-            console.error('Ticket not found in mock data');
-            throw new Error('Ticket not found');
-          }
+          showError('Ticket not found');
+          setLoading(false);
+          return;
         }
         
         setTicket(ticketData);
         console.log('Ticket set in state:', ticketData);
         
-        // Fetch event data using the eventId from the ticket
-        let eventId = ticketData.eventId;
-        console.log('Event ID from ticket:', eventId);
-        
-        // If eventId is missing but we have eventTitle, create a minimal event object
-        if (!eventId && ticketData.eventTitle) {
-          console.log('Creating minimal event object from ticket title');
-          const minimalEvent = {
-            id: 'unknown',
-            _id: 'unknown',
-            title: ticketData.eventTitle,
-            date: ticketData.purchaseDate || new Date().toISOString(),
-            location: 'Event Location'
-          };
-          setEvent(minimalEvent);
+        // Check if ticket already has populated event data
+        if (ticketData.event && typeof ticketData.event === 'object') {
+          console.log('Ticket has populated event data:', ticketData.event);
+          setEvent(ticketData.event);
           
           // If we have a QR code already, use it
           if (ticketData.qrCode) {
@@ -100,13 +65,18 @@ const TicketDetail = () => {
           setLoading(false);
           return;
         }
+         // Fetch event data using the eventId from the ticket
+        let eventId = ticketData.event?._id || ticketData.event || ticketData.eventId;
+        console.log('Event ID from ticket:', eventId);
         
-        // If no eventId at all, use a default
+        // If no eventId, show error
         if (!eventId) {
-          console.warn('No event ID found, using default');
-          eventId = '1';
+          console.error('No event ID found in ticket data');
+          showError('Unable to load event details');
+          setLoading(false);
+          return;
         }
-        
+
         try {
           console.log('Calling eventService.getEvent with ID:', eventId);
           const eventResponse = await eventService.getEvent(eventId);
@@ -116,28 +86,9 @@ const TicketDetail = () => {
           setEvent(eventData);
         } catch (eventError) {
           console.error('Error fetching event:', eventError);
-          // If we have an eventTitle in the ticket, create a minimal event object
-          if (ticketData.eventTitle) {
-            console.log('Creating minimal event object from ticket data');
-            const minimalEvent = {
-              id: eventId || 'unknown',
-              _id: eventId || 'unknown',
-              title: ticketData.eventTitle,
-              date: ticketData.purchaseDate || new Date().toISOString(),
-              location: 'Event Location'
-            };
-            setEvent(minimalEvent);
-          } else {
-            // Create a generic event object as a last resort
-            const genericEvent = {
-              id: eventId || 'unknown',
-              _id: eventId || 'unknown',
-              title: 'Event',
-              date: new Date().toISOString(),
-              location: 'Event Location'
-            };
-            setEvent(genericEvent);
-          }
+          showError('Unable to load event details');
+          setLoading(false);
+          return;
         }
         
         // Fetch QR code

@@ -3,8 +3,172 @@ const router = express.Router();
 const { checkJwt, checkUser, authorize } = require('../middleware/auth');
 const User = require('../models/User');
 const Event = require('../models/Event');
+const Notification = require('../models/Notification');
+const notificationService = require('../services/notificationService');
 const emailService = require('../services/emailService');
 const smsService = require('../services/smsService');
+
+// Get user's notifications with pagination
+router.get('/', checkJwt, checkUser, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, type, isRead, priority } = req.query;
+    
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit)
+    };
+    
+    if (type) options.type = type;
+    if (isRead !== undefined) options.isRead = isRead === 'true';
+    if (priority) options.priority = priority;
+    
+    const result = await notificationService.getUserNotifications(req.dbUser._id, options);
+    
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get unread notification count
+router.get('/unread-count', checkJwt, checkUser, async (req, res) => {
+  try {
+    const count = await notificationService.getUnreadCount(req.dbUser._id);
+    res.json({ count });
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Mark notification as read
+router.put('/:id/read', checkJwt, checkUser, async (req, res) => {
+  try {
+    const notification = await notificationService.markAsRead(req.params.id, req.dbUser._id);
+    res.json({
+      success: true,
+      message: 'Notification marked as read',
+      notification
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    if (error.message === 'Notification not found') {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Mark all notifications as read
+router.put('/mark-all-read', checkJwt, checkUser, async (req, res) => {
+  try {
+    const result = await notificationService.markAllAsRead(req.dbUser._id);
+    res.json({
+      success: true,
+      message: 'All notifications marked as read',
+      modifiedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete notification
+router.delete('/:id', checkJwt, checkUser, async (req, res) => {
+  try {
+    const result = await notificationService.deleteNotification(req.params.id, req.dbUser._id);
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create a notification (admin only)
+router.post('/', checkJwt, checkUser, authorize('admin'), async (req, res) => {
+  try {
+    const {
+      recipientId,
+      title,
+      message,
+      type,
+      channels,
+      relatedEvent,
+      relatedTicket,
+      action,
+      priority,
+      scheduledFor,
+      expiresAt
+    } = req.body;
+
+    if (!recipientId || !title || !message) {
+      return res.status(400).json({ 
+        message: 'recipientId, title, and message are required' 
+      });
+    }
+
+    const notification = await notificationService.createNotification({
+      recipientId,
+      title,
+      message,
+      type,
+      channels,
+      relatedEvent,
+      relatedTicket,
+      action,
+      priority,
+      scheduledFor,
+      expiresAt
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Notification created successfully',
+      notification
+    });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Send test notification to self
+router.post('/test', checkJwt, checkUser, async (req, res) => {
+  try {
+    const { title = 'Test Notification', message = 'This is a test notification', channels } = req.body;
+    
+    const notification = await notificationService.createNotification({
+      recipientId: req.dbUser._id,
+      title,
+      message,
+      type: 'info',
+      channels: channels || { inApp: true },
+      priority: 'normal'
+    });
+
+    res.json({
+      success: true,
+      message: 'Test notification sent',
+      notification
+    });
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Update notification preferences
 router.put('/preferences', checkJwt, checkUser, async (req, res) => {

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import eventService from '../services/eventService';
 import ticketService from '../services/ticketService';
+import favoritesService from '../services/favoritesService';
+import FavoriteButton from '../components/FavoriteButton';
 import { useSelector } from 'react-redux';
 
 const AttendeeDashboard = () => {
@@ -12,6 +14,7 @@ const AttendeeDashboard = () => {
   // State management
   const [events, setEvents] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [favoriteEvents, setFavoriteEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -56,7 +59,7 @@ const AttendeeDashboard = () => {
       // Fetch user tickets
       try {
         console.log('Fetching user tickets...');
-        const ticketsResponse = await ticketService.getUserTickets();
+        const ticketsResponse = await ticketService.getMyTickets();
         console.log('Tickets response:', ticketsResponse);
         
         // Handle both array response and object with tickets property
@@ -70,6 +73,24 @@ const AttendeeDashboard = () => {
         console.error('Error loading tickets:', ticketError);
         // Don't fail the whole dashboard if tickets fail to load
         setTickets([]);
+      }
+
+      // Fetch user's favorite events
+      try {
+        console.log('Fetching user favorites...');
+        const favoritesResponse = await favoritesService.getFavorites();
+        console.log('Favorites response:', favoritesResponse);
+        
+        const favoritesData = Array.isArray(favoritesResponse) 
+          ? favoritesResponse 
+          : favoritesResponse.favoriteEvents || favoritesResponse.data || [];
+        
+        setFavoriteEvents(favoritesData);
+        console.log('User favorites loaded:', favoritesData.length);
+      } catch (favError) {
+        console.error('Error loading favorites:', favError);
+        // Don't fail the whole dashboard if favorites fail to load
+        setFavoriteEvents([]);
       }
 
       console.log('Dashboard data loaded successfully', { eventsCount: eventsData.length });
@@ -210,7 +231,7 @@ const AttendeeDashboard = () => {
               <div className="text-3xl mr-4">❤️</div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Favorites</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{favoriteEvents.length}</p>
               </div>
             </div>
           </div>
@@ -261,7 +282,14 @@ const AttendeeDashboard = () => {
                   {filteredEvents.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {filteredEvents.slice(0, 6).map((event) => (
-                        <EventCard key={event._id} event={event} formatDate={formatDate} formatPrice={formatPrice} navigate={navigate} />
+                        <EventCard 
+                          key={event._id} 
+                          event={event} 
+                          formatDate={formatDate} 
+                          formatPrice={formatPrice} 
+                          navigate={navigate}
+                          onFavoriteUpdate={() => loadDashboardData()} // Refresh favorites when updated
+                        />
                       ))}
                     </div>
                   ) : (
@@ -320,7 +348,15 @@ const AttendeeDashboard = () => {
                 {filteredEvents.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredEvents.map((event) => (
-                      <EventCard key={event._id} event={event} formatDate={formatDate} formatPrice={formatPrice} navigate={navigate} />
+                      <EventCard 
+                        key={event._id} 
+                        event={event} 
+                        formatDate={formatDate} 
+                        formatPrice={formatPrice} 
+                        navigate={navigate} 
+                        showFavoriteButton={true}
+                        onFavoriteUpdate={() => loadDashboardData()} // Refresh favorites when updated
+                      />
                     ))}
                   </div>
                 ) : (
@@ -360,16 +396,34 @@ const AttendeeDashboard = () => {
 
             {/* Favorites Tab */}
             {activeTab === 'favorites' && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <div className="text-4xl mb-4">❤️</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Favorites Yet</h3>
-                <p className="text-gray-600 mb-4">Save events you're interested in to see them here!</p>
-                <button
-                  onClick={() => setActiveTab('discover')}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Discover Events
-                </button>
+              <div>
+                {favoriteEvents && favoriteEvents.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {favoriteEvents.map((event) => (
+                      <EventCard 
+                        key={event._id || event.id} 
+                        event={event} 
+                        formatDate={formatDate} 
+                        formatPrice={formatPrice} 
+                        navigate={navigate} 
+                        showFavoriteButton={true}
+                        onFavoriteUpdate={() => loadDashboardData()} // Refresh data when favorite is removed
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-gray-50 rounded-lg">
+                    <div className="text-4xl mb-4">❤️</div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Favorites Yet</h3>
+                    <p className="text-gray-600 mb-4">Save events you're interested in to see them here!</p>
+                    <button
+                      onClick={() => setActiveTab('discover')}
+                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Discover Events
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -380,14 +434,24 @@ const AttendeeDashboard = () => {
 };
 
 // Event Card Component
-const EventCard = ({ event, formatDate, formatPrice, navigate }) => {
+const EventCard = ({ event, formatDate, formatPrice, navigate, showFavoriteButton = true, onFavoriteUpdate }) => {
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
-      <div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+      <div className="h-48 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center relative">
         {event.image ? (
           <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
         ) : (
           <div className="text-white text-6xl">🎭</div>
+        )}
+        {showFavoriteButton && (
+          <div className="absolute top-2 right-2">
+            <FavoriteButton 
+              eventId={event._id || event.id} 
+              size="md" 
+              className="bg-white/90 backdrop-blur-sm border border-white/20" 
+              onUpdate={onFavoriteUpdate}
+            />
+          </div>
         )}
       </div>
       
@@ -423,13 +487,10 @@ const EventCard = ({ event, formatDate, formatPrice, navigate }) => {
         
         <div className="flex space-x-2">
           <button
-            onClick={() => navigate(`/event/${event._id}`)}
+            onClick={() => navigate(`/event/${event._id || event.id}`)}
             className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             View Details
-          </button>
-          <button className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            ❤️
           </button>
         </div>
       </div>
@@ -454,14 +515,28 @@ const TicketCard = ({ ticket, formatDate }) => {
     // Debug logging
     console.log('Viewing ticket:', ticket);
     console.log('Ticket ID:', ticket.id || ticket._id);
+    console.log('Event ID:', ticket.event?._id);
     console.log('Ticket ID type:', typeof (ticket.id || ticket._id));
     
     // Navigate to ticket detail page
     const ticketIdToUse = ticket.id || ticket._id;
-    console.log('Using ticket ID for navigation:', ticketIdToUse);
+    const eventIdToUse = ticket.event?._id;
     
-    // Use the correct route path
-    navigate(`/attendee/tickets/${ticketIdToUse}`);
+    console.log('Using ticket ID for navigation:', ticketIdToUse);
+    console.log('Using event ID for navigation:', eventIdToUse);
+    
+    // Use the correct route path: /event/:eventId/ticket/:ticketId or fallback to /ticket/:ticketId
+    if (eventIdToUse && ticketIdToUse) {
+      navigate(`/event/${eventIdToUse}/ticket/${ticketIdToUse}`);
+    } else if (ticketIdToUse) {
+      // Fallback to simpler route if event ID is missing
+      navigate(`/ticket/${ticketIdToUse}`);
+    } else {
+      console.error('Missing ticketId for navigation');
+      console.error('Event ID:', eventIdToUse);
+      console.error('Ticket ID:', ticketIdToUse);
+      alert('Unable to view ticket details. Missing ticket information.');
+    }
   };
 
   return (
@@ -476,7 +551,7 @@ const TicketCard = ({ ticket, formatDate }) => {
       </div>
       
       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-        {ticket.eventTitle || 'Event Ticket'}
+        {ticket.event?.title || ticket.eventTitle || 'Event Ticket'}
       </h3>
       
       <div className="space-y-2 text-sm text-gray-600">

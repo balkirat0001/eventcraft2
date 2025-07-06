@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -24,6 +24,9 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const user = useSelector(state => state.user.user);
   const { success, error } = useNotification();
+  const [searchParams] = useSearchParams();
+  const editEventId = searchParams.get('edit');
+  const isEditing = !!editEventId;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -48,6 +51,63 @@ const CreateEvent = () => {
     ],
     image: ''
   });
+
+  // Load event data for editing
+  useEffect(() => {
+    if (isEditing && editEventId) {
+      loadEventForEditing(editEventId);
+    }
+  }, [isEditing, editEventId]);
+
+  const loadEventForEditing = async (eventId) => {
+    try {
+      setLoading(true);
+      const event = await eventService.getEvent(eventId);
+      
+      // Check if user is authorized to edit this event
+      if (event.organizer && event.organizer !== user._id && user.role !== 'admin') {
+        error('You are not authorized to edit this event');
+        navigate('/organizer/dashboard');
+        return;
+      }
+
+      // Format date for input fields
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+      };
+
+      setFormData({
+        title: event.title || '',
+        description: event.description || '',
+        date: formatDateForInput(event.date),
+        endDate: formatDateForInput(event.endDate),
+        location: event.location || '',
+        isVirtual: event.isVirtual || false,
+        virtualLink: event.virtualLink || '',
+        capacity: event.capacity || 100,
+        ticketPrice: event.ticketPrice || 0,
+        category: event.category || '',
+        tags: event.tags || [],
+        ticketTypes: event.ticketTypes && event.ticketTypes.length > 0 
+          ? event.ticketTypes 
+          : [{
+              name: 'General Admission',
+              price: event.ticketPrice || 0,
+              description: 'Standard event admission',
+              quantity: event.capacity || 100
+            }],
+        image: event.image || ''
+      });
+    } catch (err) {
+      console.error('Error loading event for editing:', err);
+      error('Failed to load event data');
+      navigate('/organizer/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [errors, setErrors] = useState({});
 
@@ -156,12 +216,18 @@ const CreateEvent = () => {
     
     setLoading(true);
     try {
-      const response = await eventService.createEvent(formData);
-      success(response.message || 'Event created and published successfully!');
+      let response;
+      if (isEditing) {
+        response = await eventService.updateEvent(editEventId, formData);
+        success(response.message || 'Event updated successfully!');
+      } else {
+        response = await eventService.createEvent(formData);
+        success(response.message || 'Event created successfully!');
+      }
       navigate('/organizer/dashboard');
     } catch (err) {
-      console.error('Error creating event:', err);
-      error(err.message || 'Failed to create event. Please try again.');
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} event:`, err);
+      error(err.message || `Failed to ${isEditing ? 'update' : 'create'} event. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -184,10 +250,13 @@ const CreateEvent = () => {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Create New Event 🎪
+            {isEditing ? 'Edit Event 📝' : 'Create New Event 🎪'}
           </h1>
           <p className="text-gray-600">
-            Fill in the details below to create your amazing event
+            {isEditing 
+              ? 'Update your event details below' 
+              : 'Fill in the details below to create your amazing event'
+            }
           </p>
         </motion.div>
 
@@ -643,12 +712,12 @@ const CreateEvent = () => {
                   {loading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Creating Event...
+                      {isEditing ? 'Updating...' : 'Creating...'}
                     </>
                   ) : (
                     <>
                       <CheckIcon className="w-4 h-4 mr-2" />
-                      Create Event
+                      {isEditing ? 'Update Event' : 'Create Event'}
                     </>
                   )}
                 </Button>

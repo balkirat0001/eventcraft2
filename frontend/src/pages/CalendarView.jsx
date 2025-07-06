@@ -3,6 +3,7 @@ import eventService from '../services/eventService';
 import calendarService from '../services/calendarService';
 import { useNotification } from '../components/NotificationContext';
 import Button from '../components/ui/Button';
+import '../components/Calendar.css';
 
 const CalendarView = () => {
   const [events, setEvents] = useState([]);
@@ -10,6 +11,8 @@ const CalendarView = () => {
   const [error, setError] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
   const notification = useNotification();
 
   // Fetch events only once when component mounts
@@ -166,40 +169,77 @@ const CalendarView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading calendar...</p>
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+            <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-transparent border-t-purple-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+          </div>
+          <div className="mt-6 text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Calendar</h3>
+            <p className="text-gray-600">Fetching your events...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="flex items-center mb-6">
-          <div className="text-3xl mr-3">📅</div>
-          <h2 className="text-3xl font-bold text-blue-600">Event Calendar</h2>
-          <div className="ml-auto">
-          <button 
-            onClick={fetchEvents}
-              className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Refresh
-          </button>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div className="flex items-center mb-3 sm:mb-0">
+              <div className="text-2xl mr-2">📅</div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Event Calendar</h1>
+                <p className="text-gray-600 text-sm">Discover and manage your upcoming events</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="flex bg-white rounded-lg shadow-sm border text-sm">
+                <button
+                  onClick={() => setViewMode('month')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-l-lg transition-colors ${
+                    viewMode === 'month' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Month
+                </button>
+                <button
+                  onClick={() => setViewMode('week')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-r-lg transition-colors ${
+                    viewMode === 'week' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Week
+                </button>
+              </div>
+              <button 
+                onClick={fetchEvents}
+                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
+              >
+                🔄
+              </button>
+            </div>
           </div>
-        </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-4 shadow-sm text-sm">
+              <div className="flex items-center">
+                <span className="text-red-500 mr-2">⚠️</span>
+                {error}
+              </div>
+            </div>
+          )}
 
-        {/* Month Navigation */}
-        <div className="flex justify-between items-center mb-6 px-4">
+          {/* Month Navigation */}
+          <div className="flex flex-col sm:flex-row justify-between items-center bg-white rounded-lg shadow-sm border p-3 space-y-3 sm:space-y-0">
             <button
               onClick={() => {
                 if (selectedMonth === 0) {
@@ -209,14 +249,32 @@ const CalendarView = () => {
                   setSelectedMonth(selectedMonth - 1);
                 }
               }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+              className="flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1.5 rounded-md hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm text-sm"
             >
-              ← Prev
+              <span>←</span>
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Prev</span>
             </button>
             
-          <h3 className="text-2xl font-semibold text-gray-900">
-              {monthNames[selectedMonth]} {selectedYear}
-            </h3>
+            <div className="text-center">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                {monthNames[selectedMonth]} {selectedYear}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {filteredEvents.length} events
+              </p>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  setSelectedMonth(today.getMonth());
+                  setSelectedYear(today.getFullYear());
+                  setSelectedDate(null);
+                }}
+                className="mt-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                Today
+              </button>
+            </div>
             
             <button
               onClick={() => {
@@ -227,81 +285,183 @@ const CalendarView = () => {
                   setSelectedMonth(selectedMonth + 1);
                 }
               }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+              className="flex items-center space-x-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1.5 rounded-md hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm text-sm"
             >
-              Next →
+              <span className="hidden sm:inline">Next</span>
+              <span className="sm:hidden">Next</span>
+              <span>→</span>
             </button>
+          </div>
         </div>
 
-        {/* Calendar Table */}
-        <table className="w-full border-collapse mb-8">
-          <thead>
-            <tr>
+        {/* Calendar Grid */}
+        <div className="bg-white rounded-lg shadow-md border overflow-hidden mb-6">
+          {/* Day Headers */}
+          <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
             {dayNames.map(day => (
-                <th key={day} className="p-2 bg-blue-50 border text-gray-700">
-                {day}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {calendarDays.map((week, weekIndex) => (
-              <tr key={weekIndex}>
-                {week.map((day, dayIndex) => {
-                  if (day === null) {
-                    return <td key={dayIndex} className="border p-2"></td>;
-                  }
-                  
-                  const date = new Date(selectedYear, selectedMonth, day).toDateString();
-                  const dayEvents = eventsByDate[date] || [];
-                  const isToday = new Date().toDateString() === date;
-                  
-                  return (
-                    <td key={dayIndex} className={`border p-2 align-top ${isToday ? 'bg-blue-50' : ''}`}>
-                      <div className="font-medium">{day}</div>
-                      {dayEvents.length > 0 && (
-                        <div className="mt-1">
-                          <div className="text-blue-600 text-sm">
-                            {dayEvents.length === 1 ? '1 event' : `${dayEvents.length} events`}
+              <div key={day} className="p-2 text-center">
+                <span className="text-xs font-semibold text-gray-700 hidden sm:block">{day}</span>
+                <span className="text-xs font-semibold text-gray-700 sm:hidden">{day.slice(0, 1)}</span>
               </div>
-                          <div className="text-blue-800 text-sm font-medium">
-                            {dayEvents[0].title}
+            ))}
           </div>
-                          <div className="mt-1 flex flex-col space-y-1">
-                            <button
-                              onClick={() => {
-                                console.log('Event data:', dayEvents[0]);
-                                handleAddToCalendar(dayEvents[0]);
+
+          {/* Calendar Days */}
+          <div className="grid grid-cols-7">
+            {calendarDays.map((week, weekIndex) => (
+              week.map((day, dayIndex) => {
+                if (day === null) {
+                  return (
+                    <div 
+                      key={`${weekIndex}-${dayIndex}`} 
+                      className="calendar-day border-r border-b border-gray-100 bg-gray-25"
+                    />
+                  );
+                }
+                
+                const date = new Date(selectedYear, selectedMonth, day);
+                const dateKey = date.toDateString();
+                const dayEvents = eventsByDate[dateKey] || [];
+                const isToday = new Date().toDateString() === dateKey;
+                const isSelected = selectedDate === dateKey;
+                
+                return (
+                  <div 
+                    key={`${weekIndex}-${dayIndex}`}
+                    onClick={() => setSelectedDate(isSelected ? null : dateKey)}
+                    className={`calendar-day border-r border-b border-gray-100 p-2 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+                      isToday 
+                        ? 'bg-blue-50 calendar-day-today' 
+                        : isSelected 
+                        ? 'bg-purple-50 calendar-day-selected'
+                        : ''
+                    }`}
+                  >
+                    <div className="h-full flex flex-col">
+                      <div className={`text-xs font-medium mb-1 ${
+                        isToday 
+                          ? 'text-blue-700 font-bold' 
+                          : isSelected 
+                          ? 'text-purple-700 font-bold'
+                          : 'text-gray-900'
+                      }`}>
+                        {day}
+                      </div>
+                      
+                      <div className="flex-1 space-y-0.5">
+                        {dayEvents.slice(0, 2).map((event, index) => {
+                          // Determine event color based on category
+                          const getEventColor = (category) => {
+                            switch(category?.toLowerCase()) {
+                              case 'technology': return 'bg-blue-100 text-blue-800';
+                              case 'business': return 'bg-green-100 text-green-800';
+                              case 'arts': return 'bg-purple-100 text-purple-800';
+                              case 'sports': return 'bg-orange-100 text-orange-800';
+                              case 'education': return 'bg-indigo-100 text-indigo-800';
+                              case 'entertainment': return 'bg-pink-100 text-pink-800';
+                              default: return 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800';
+                            }
+                          };
+                          
+                          return (
+                            <div
+                              key={event._id || event.id}
+                              className={`calendar-event cursor-pointer hover:shadow-sm transition-all duration-200 ${getEventColor(event.category)}`}
+                              title={`${event.title} - ${new Date(event.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDate(dateKey);
                               }}
-                              className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
                             >
-                              Add to Calendar
-                            </button>
-                            <button
-                              onClick={() => {
-                                console.log('Event data:', dayEvents[0]);
-                                handleAddReminder(dayEvents[0], 60);
-                              }}
-                              className="bg-blue-600 text-white text-xs px-2 py-1 rounded"
-                            >
-                              Remind
-                            </button>
+                              <div className="font-medium truncate">{event.title}</div>
+                            </div>
+                          );
+                        })}
+                        {dayEvents.length > 2 && (
+                          <div className="text-xs text-gray-500 font-medium px-1 py-0.5 bg-gray-100 rounded text-center">
+                            +{dayEvents.length - 2}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ))}
           </div>
         </div>
-                      )}
-                    </td>
-                  );
+
+        {/* Selected Date Events */}
+        {selectedDate && eventsByDate[selectedDate] && (
+          <div className="mb-6 bg-white rounded-lg shadow-md border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-gray-900">
+                Events on {new Date(selectedDate).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  month: 'short', 
+                  day: 'numeric' 
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </h3>
+              <button
+                onClick={() => setSelectedDate(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {eventsByDate[selectedDate].map((event) => (
+                <div
+                  key={event._id || event.id}
+                  className="bg-gradient-to-br from-blue-50 to-purple-50 p-3 rounded-lg border border-blue-100 hover:shadow-md transition-shadow"
+                >
+                  <h4 className="font-semibold text-gray-900 mb-2 text-sm">{event.title}</h4>
+                  <div className="space-y-1 text-xs text-gray-600 mb-2">
+                    <p className="flex items-center">
+                      <span className="mr-1">🕒</span>
+                      {new Date(event.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </p>
+                    <p className="flex items-center">
+                      <span className="mr-1">📍</span>
+                      <span className="truncate">{event.location || 'Location TBD'}</span>
+                    </p>
+                    <p className="flex items-center">
+                      <span className="mr-1">💰</span>
+                      {event.price ? `$${event.price}` : 'Free'}
+                    </p>
+                  </div>
+                  <div className="flex space-x-1">
+                    <Button
+                      onClick={() => handleAddToCalendar(event)}
+                      size="sm"
+                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 text-xs py-1"
+                    >
+                      📅 Add
+                    </Button>
+                    <Button
+                      onClick={() => handleAddReminder(event, 60)}
+                      size="sm"
+                      className="flex-1 bg-purple-600 text-white hover:bg-purple-700 text-xs py-1"
+                    >
+                      🔔 Remind
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Upcoming Events List */}
-        <div className="mt-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Upcoming Events ({filteredEvents.length})
-          </h3>
+        <div className="bg-white rounded-lg shadow-md border p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">
+              Upcoming Events
+            </h3>
+            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+              {filteredEvents.length}
+            </span>
+          </div>
           
           {filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -311,41 +471,77 @@ const CalendarView = () => {
                 .map((event) => (
                   <div
                     key={event._id || event.id}
-                    className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-600 hover:shadow-lg transition-shadow"
+                    className="group bg-gradient-to-br from-white to-gray-50 p-4 rounded-lg border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all duration-300"
                   >
-                    <h4 className="text-lg font-semibold text-blue-800 mb-2">
-                      {event.title}
-                    </h4>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>📅 {new Date(event.date).toLocaleDateString()} at {new Date(event.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                      <p>📍 {event.location || 'Location TBD'}</p>
-                      <p>🎫 {event.price ? `$${event.price}` : 'Free'}</p>
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2">
+                        {event.title}
+                      </h4>
                       {event.category && (
-                        <p>🏷️ {event.category}</p>
+                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-1.5 py-0.5 rounded-full ml-1 whitespace-nowrap">
+                          {event.category}
+                        </span>
                       )}
                     </div>
-                    <div className="mt-3 flex space-x-2">
+                    
+                    <div className="space-y-1 text-xs text-gray-600 mb-3">
+                      <div className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-blue-500">📅</span>
+                        <span>{new Date(event.date).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-green-500">📍</span>
+                        <span className="truncate">{event.location || 'Location TBD'}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-3 h-3 mr-2 text-yellow-500">💰</span>
+                        <span className="font-medium">{event.price ? `$${event.price}` : 'Free'}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex space-x-1">
                       <Button
                         onClick={() => handleAddToCalendar(event)}
                         size="sm"
-                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 text-xs font-medium py-1"
                       >
-                        Add to Calendar
+                        📅 Add
                       </Button>
                       <Button
                         onClick={() => handleAddReminder(event, 60)}
                         size="sm"
-                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 text-xs font-medium py-1"
                       >
-                        Set Reminder
+                        🔔 Remind
                       </Button>
                     </div>
                   </div>
                 ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              No events scheduled for {monthNames[selectedMonth]} {selectedYear}
+            <div className="text-center py-8">
+              <div className="text-4xl mb-3">📅</div>
+              <h3 className="text-md font-medium text-gray-900 mb-1">
+                No Events This Month
+              </h3>
+              <p className="text-gray-500 mb-4 text-sm">
+                No events scheduled for {monthNames[selectedMonth]} {selectedYear}
+              </p>
+              <Button
+                onClick={() => {
+                  const today = new Date();
+                  setSelectedMonth(today.getMonth());
+                  setSelectedYear(today.getFullYear());
+                }}
+                className="bg-blue-600 text-white hover:bg-blue-700 text-sm"
+              >
+                Go to Current Month
+              </Button>
             </div>
           )}
         </div>

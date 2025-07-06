@@ -175,6 +175,11 @@ const App = () => {
                 <TicketDetail />
               </ProtectedRoute>
             } />
+            <Route path="/ticket/:ticketId" element={
+              <ProtectedRoute>
+                <TicketDetail />
+              </ProtectedRoute>
+            } />
 
             {/* Attendee Routes */}
             <Route path="/attendee/dashboard" element={

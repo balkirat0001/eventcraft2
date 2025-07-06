@@ -30,6 +30,8 @@ import {
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { eventService } from '../services/eventService';
+import activityService from '../services/activityService';
+import notificationService from '../services/notificationService';
 import { useNotification } from '../components/NotificationContext';
 
 const OrganizerDashboard = () => {
@@ -38,6 +40,9 @@ const OrganizerDashboard = () => {
   const { success, error } = useNotification();
   const [events, setEvents] = useState([]);
   const [analytics, setAnalytics] = useState({});
+  const [activities, setActivities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -55,20 +60,38 @@ const OrganizerDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch organizer's events and analytics in parallel
-      const [eventsData, analyticsData] = await Promise.all([
+      // Fetch organizer's events, analytics, activities, and notifications in parallel
+      const [eventsData, analyticsData, activitiesData, notificationsData, unreadCount] = await Promise.all([
         eventService.getOrganizerEvents(),
-        eventService.getEventAnalytics()
+        eventService.getEventAnalytics(),
+        activityService.getRecentActivities().catch(err => {
+          console.warn('Failed to fetch activities:', err);
+          return [];
+        }),
+        notificationService.getOrganizerNotifications({ limit: 10 }).catch(err => {
+          console.warn('Failed to fetch notifications:', err);
+          return { notifications: [] };
+        }),
+        notificationService.getUnreadNotificationsCount().catch(err => {
+          console.warn('Failed to fetch unread count:', err);
+          return 0;
+        })
       ]);
 
       setEvents(Array.isArray(eventsData) ? eventsData : []);
       setAnalytics(analyticsData?.data || analyticsData || {});
+      setActivities(Array.isArray(activitiesData) ? activitiesData : []);
+      setNotifications(notificationsData.notifications || []);
+      setUnreadNotificationsCount(unreadCount || 0);
       
     } catch (err) {
       console.error('Error fetching data:', err);
       error('Failed to load dashboard data');
       setEvents([]);
       setAnalytics({});
+      setActivities([]);
+      setNotifications([]);
+      setUnreadNotificationsCount(0);
     } finally {
       setLoading(false);
     }
@@ -152,7 +175,7 @@ const OrganizerDashboard = () => {
               value: safeEvents.length,
               icon: CalendarSolidIcon,
               color: 'blue',
-              change: '+2 this month',
+              change: `${upcomingEvents} upcoming`,
               trend: 'up'
             },
             {
@@ -160,7 +183,7 @@ const OrganizerDashboard = () => {
               value: analytics.totalAttendees || 0,
               icon: UserGroupSolidIcon,
               color: 'green',
-              change: `+${Math.floor(Math.random() * 20)}% this month`,
+              change: `${publishedEvents.length} published`,
               trend: 'up'
             },
             {
@@ -168,15 +191,15 @@ const OrganizerDashboard = () => {
               value: `$${analytics.totalRevenue || 0}`,
               icon: CurrencyDollarSolidIcon,
               color: 'purple',
-              change: '+$1,200 this month',
+              change: `${draftEvents.length} drafts`,
               trend: 'up'
             },
             {
-              title: 'Avg. Rating',
-              value: '4.8',
+              title: 'Published Events',
+              value: publishedEvents.length,
               icon: StarIcon,
               color: 'yellow',
-              change: '+0.2 this month',
+              change: `${pendingApprovalEvents.length} pending`,
               trend: 'up'
             }
           ].map((stat, index) => {
@@ -238,7 +261,7 @@ const OrganizerDashboard = () => {
                 { id: 'overview', name: 'Overview', icon: ChartBarIcon },
                 { id: 'events', name: 'My Events', icon: CalendarIcon, badge: safeEvents.length },
                 { id: 'analytics', name: 'Analytics', icon: DocumentTextIcon },
-                { id: 'notifications', name: 'Notifications', icon: BellIcon, badge: 3 }
+                { id: 'notifications', name: 'Notifications', icon: BellIcon, badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : null }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -366,34 +389,40 @@ const OrganizerDashboard = () => {
                 <Card className="p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Activity</h3>
                   <div className="space-y-4">
-                    {[
-                      { type: 'ticket_sold', message: 'New ticket sold for "Tech Conference 2024"', time: '2 minutes ago', color: 'green' },
-                      { type: 'event_created', message: 'Event "Music Festival" created', time: '1 hour ago', color: 'blue' },
-                      { type: 'event_approved', message: 'Event "Business Summit" approved by admin', time: '3 hours ago', color: 'purple' }
-                    ].map((activity, index) => {
-                      const getActivityColorClass = (color) => {
-                        switch (color) {
-                          case 'green':
-                            return 'bg-green-500';
-                          case 'blue':
-                            return 'bg-blue-500';
-                          case 'purple':
-                            return 'bg-purple-500';
-                          default:
-                            return 'bg-gray-500';
-                        }
-                      };
-                      
-                      return (
-                        <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                          <div className={`w-3 h-3 ${getActivityColorClass(activity.color)} rounded-full`}></div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{activity.message}</p>
-                            <p className="text-sm text-gray-500">{activity.time}</p>
+                    {activities.length > 0 ? (
+                      activities.map((activity, index) => {
+                        const getActivityColorClass = (color) => {
+                          switch (color) {
+                            case 'green':
+                              return 'bg-green-500';
+                            case 'blue':
+                              return 'bg-blue-500';
+                            case 'purple':
+                              return 'bg-purple-500';
+                            case 'orange':
+                              return 'bg-orange-500';
+                            default:
+                              return 'bg-gray-500';
+                          }
+                        };
+                        
+                        return (
+                          <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                            <div className={`w-3 h-3 ${getActivityColorClass(activity.color)} rounded-full`}></div>
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900">{activity.message}</p>
+                              <p className="text-sm text-gray-500">{activity.timeFormatted}</p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <BellIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>No recent activity</p>
+                        <p className="text-sm">Create your first event to see activity here</p>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </div>
@@ -541,7 +570,7 @@ const OrganizerDashboard = () => {
                         { label: 'Events Created', value: safeEvents.length, icon: CalendarIcon, color: 'blue' },
                         { label: 'Total Attendees', value: analytics.totalAttendees || 0, icon: UserGroupIcon, color: 'green' },
                         { label: 'Revenue Generated', value: `$${analytics.totalRevenue || 0}`, icon: CurrencyDollarIcon, color: 'purple' },
-                        { label: 'Average Rating', value: '4.8/5', icon: StarIcon, color: 'yellow' }
+                        { label: 'Pending Approval', value: pendingApprovalEvents.length, icon: StarIcon, color: 'yellow' }
                       ].map((metric, index) => {
                         const getMetricColorClasses = (color) => {
                           switch (color) {
@@ -611,24 +640,30 @@ const OrganizerDashboard = () => {
                   </Card>
                 </div>
 
-                {/* Growth Trends */}
+                {/* Recent Activity Summary */}
                 <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Growth Trends</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                      { metric: 'Event Views', change: '+24%', trend: 'up' },
-                      { metric: 'Ticket Sales', change: '+18%', trend: 'up' },
-                      { metric: 'Revenue', change: '+32%', trend: 'up' }
-                    ].map((trend, index) => (
-                      <div key={index} className="text-center p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm font-medium text-gray-600">{trend.metric}</p>
-                        <div className="flex items-center justify-center mt-2">
-                          <ArrowTrendingUpIcon className="w-5 h-5 text-green-500 mr-1" />
-                          <span className="text-lg font-bold text-green-600">{trend.change}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">vs last month</p>
-                      </div>
-                    ))}
+                    <Link to="/organizer/create-event">
+                      <Button variant="primary" className="w-full flex items-center justify-center space-x-2">
+                        <PlusIcon className="w-5 h-5" />
+                        <span>Create New Event</span>
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="secondary" 
+                      className="w-full"
+                      onClick={() => setActiveTab('events')}
+                    >
+                      View All Events
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setActiveTab('notifications')}
+                    >
+                      View Notifications
+                    </Button>
                   </div>
                 </Card>
               </div>
@@ -637,49 +672,141 @@ const OrganizerDashboard = () => {
             {/* Notifications Tab */}
             {activeTab === 'notifications' && (
               <Card className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Notifications</h3>
-                <div className="space-y-4">
-                  {[
-                    {
-                      type: 'success',
-                      title: 'Event Approved',
-                      message: 'Your event "Tech Conference 2024" has been approved and is now live.',
-                      time: '2 hours ago',
-                      icon: CalendarIcon
-                    },
-                    {
-                      type: 'info',
-                      title: 'New Ticket Sale',
-                      message: 'Someone just purchased a ticket for "Music Festival".',
-                      time: '5 hours ago',
-                      icon: TicketIcon
-                    },
-                    {
-                      type: 'warning',
-                      title: 'Event Capacity Alert',
-                      message: 'Your event "Business Summit" is 90% full.',
-                      time: '1 day ago',
-                      icon: ExclamationTriangleIcon
-                    }
-                  ].map((notification, index) => (
-                    <div key={index} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                      <div className={`p-2 rounded-lg ${
-                        notification.type === 'success' ? 'bg-green-100' :
-                        notification.type === 'warning' ? 'bg-yellow-100' : 'bg-blue-100'
-                      }`}>
-                        <notification.icon className={`w-5 h-5 ${
-                          notification.type === 'success' ? 'text-green-600' :
-                          notification.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                        }`} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{notification.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                        <p className="text-xs text-gray-500 mt-2">{notification.time}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">Notifications</h3>
+                  {unreadNotificationsCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await notificationService.markAllAsRead();
+                          setUnreadNotificationsCount(0);
+                          setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+                          success('All notifications marked as read');
+                        } catch (err) {
+                          error('Failed to mark notifications as read');
+                        }
+                      }}
+                    >
+                      Mark All as Read
+                    </Button>
+                  )}
                 </div>
+                
+                <div className="space-y-4">
+                  {notifications.length > 0 ? (
+                    notifications.map((notification) => {
+                      const getNotificationIcon = (type) => {
+                        switch (type) {
+                          case 'event_approved':
+                          case 'event_updated':
+                          case 'success':
+                            return CalendarIcon;
+                          case 'ticket_confirmation':
+                          case 'ticket_cancelled':
+                          case 'ticket_checkin':
+                            return TicketIcon;
+                          case 'warning':
+                          case 'event_cancelled':
+                            return ExclamationTriangleIcon;
+                          case 'info':
+                          case 'event_reminder':
+                          default:
+                            return BellIcon;
+                        }
+                      };
+
+                      const getNotificationColor = (type) => {
+                        switch (type) {
+                          case 'event_approved':
+                          case 'success':
+                            return { bg: 'bg-green-100', text: 'text-green-600' };
+                          case 'warning':
+                          case 'event_cancelled':
+                            return { bg: 'bg-yellow-100', text: 'text-yellow-600' };
+                          case 'error':
+                          case 'event_rejected':
+                            return { bg: 'bg-red-100', text: 'text-red-600' };
+                          default:
+                            return { bg: 'bg-blue-100', text: 'text-blue-600' };
+                        }
+                      };
+
+                      const NotificationIcon = getNotificationIcon(notification.type);
+                      const colorClasses = getNotificationColor(notification.type);
+                      const timeAgo = new Date(notification.createdAt).toLocaleString();
+
+                      return (
+                        <div 
+                          key={notification._id} 
+                          className={`flex items-start space-x-4 p-4 rounded-lg border transition-colors ${
+                            notification.isRead ? 'bg-gray-50' : 'bg-white border-primary-200'
+                          }`}
+                          onClick={async () => {
+                            if (!notification.isRead) {
+                              try {
+                                await notificationService.markNotificationAsRead(notification._id);
+                                setNotifications(notifications.map(n => 
+                                  n._id === notification._id ? { ...n, isRead: true } : n
+                                ));
+                                setUnreadNotificationsCount(prev => Math.max(0, prev - 1));
+                              } catch (err) {
+                                console.error('Failed to mark notification as read:', err);
+                              }
+                            }
+                          }}
+                        >
+                          <div className={`p-2 rounded-lg ${colorClasses.bg}`}>
+                            <NotificationIcon className={`w-5 h-5 ${colorClasses.text}`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <h4 className={`font-medium ${notification.isRead ? 'text-gray-700' : 'text-gray-900'}`}>
+                                {notification.title}
+                              </h4>
+                              {!notification.isRead && (
+                                <div className="w-2 h-2 bg-primary-500 rounded-full mt-2"></div>
+                              )}
+                            </div>
+                            <p className={`text-sm mt-1 ${notification.isRead ? 'text-gray-500' : 'text-gray-600'}`}>
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-2">{timeAgo}</p>
+                            {notification.relatedEvent && (
+                              <p className="text-xs text-primary-600 mt-1">
+                                Related to: {notification.relatedEvent.title}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-12">
+                      <BellIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No notifications yet</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        You'll see important updates about your events here
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {notifications.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => {
+                        // Load more notifications
+                        fetchOrganizerData();
+                      }}
+                    >
+                      Load More Notifications
+                    </Button>
+                  </div>
+                )}
               </Card>
             )}
           </motion.div>

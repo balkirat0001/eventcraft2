@@ -30,15 +30,16 @@ const Profile = () => {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [bio, setBio] = useState(user?.bio || '');
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || user?.phone || '');
+  const [location, setLocation] = useState(user?.location || '');
   const [profilePicture, setProfilePicture] = useState(user?.profilePicture || 'https://via.placeholder.com/150');
   const [isUploading, setIsUploading] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Fetch user tickets
+  // Fetch user tickets (only for attendees)
   useEffect(() => {
-    if (activeTab === 'tickets') {
+    if (activeTab === 'tickets' && user?.role === 'attendee') {
       const fetchTickets = async () => {
         try {
           setLoading(true);
@@ -54,7 +55,7 @@ const Profile = () => {
       
       fetchTickets();
     }
-  }, [activeTab, showError]);
+  }, [activeTab, user?.role, showError]);
 
   // Handle profile update
   const handleUpdateProfile = async (e) => {
@@ -68,6 +69,7 @@ const Profile = () => {
         email,
         bio,
         phoneNumber,
+        location,
         profilePicture
       };
       
@@ -137,6 +139,18 @@ const Profile = () => {
     navigate('/settings');
   };
   
+  // Update local state when user object changes (after successful profile update)
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setBio(user.bio || '');
+      setPhoneNumber(user.phoneNumber || user.phone || '');
+      setLocation(user.location || '');
+      setProfilePicture(user.profilePicture || 'https://via.placeholder.com/150');
+    }
+  }, [user]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Debug Info - Remove this in production */}
@@ -229,17 +243,20 @@ const Profile = () => {
                     <UserIcon className="w-5 h-5 mr-2" />
                     Profile Information
                   </button>
-                  <button
-                    onClick={() => setActiveTab('tickets')}
-                    className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
-                      activeTab === 'tickets'
-                        ? 'bg-primary-50 text-primary-600'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <TicketIcon className="w-5 h-5 mr-2" />
-                    My Tickets
-                  </button>
+                  {/* Only show My Tickets tab for attendees */}
+                  {user?.role === 'attendee' && (
+                    <button
+                      onClick={() => setActiveTab('tickets')}
+                      className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+                        activeTab === 'tickets'
+                          ? 'bg-primary-50 text-primary-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <TicketIcon className="w-5 h-5 mr-2" />
+                      My Tickets
+                    </button>
+                  )}
                 </nav>
               </div>
             </div>
@@ -287,6 +304,17 @@ const Profile = () => {
                       />
                     </div>
                     
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Location</label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="City, Country"
+                        className="mt-1 p-2 w-full border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700">Bio</label>
                       <textarea
@@ -321,7 +349,15 @@ const Profile = () => {
                       <PhoneIcon className="w-5 h-5 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-gray-500">Phone</p>
-                        <p className="text-gray-900">{user?.phoneNumber || 'Not provided'}</p>
+                        <p className="text-gray-900">{user?.phoneNumber || user?.phone || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3">
+                      <MapPinIcon className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">Location</p>
+                        <p className="text-gray-900">{user?.location || 'Not provided'}</p>
                       </div>
                     </div>
                     
@@ -350,7 +386,8 @@ const Profile = () => {
             </Card>
           )}
           
-          {activeTab === 'tickets' && (
+          {/* Only show tickets tab for attendees */}
+          {activeTab === 'tickets' && user?.role === 'attendee' && (
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">My Tickets</h3>

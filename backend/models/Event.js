@@ -103,6 +103,13 @@ const EventSchema = new mongoose.Schema(
     approvedAt: {
       type: Date,
     },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    rejectedAt: {
+      type: Date,
+    },
     rejectionReason: {
       type: String,
     },
@@ -144,4 +151,4 @@ const EventSchema = new mongoose.Schema(
 // Create index for search
 EventSchema.index({ title: 'text', description: 'text', location: 'text' });
 
-module.exports = mongoose.model('Event', EventSchema); 
+module.exports = mongoose.model('Event', EventSchema);

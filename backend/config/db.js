@@ -5,6 +5,11 @@ const connectDB = async () => {
     // Support both MONGO_URI and MONGODB_URI environment variables
     const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
     
+    console.log('🔍 Debugging MongoDB connection:');
+    console.log('MONGO_URI:', process.env.MONGO_URI ? process.env.MONGO_URI.replace(/\/\/[^:]*:[^@]*@/, '//***:***@') : 'undefined');
+    console.log('MONGODB_URI:', process.env.MONGODB_URI ? process.env.MONGODB_URI.replace(/\/\/[^:]*:[^@]*@/, '//***:***@') : 'undefined');
+    console.log('Final mongoUri:', mongoUri ? mongoUri.replace(/\/\/[^:]*:[^@]*@/, '//***:***@') : 'undefined');
+    
     if (!mongoUri) {
       console.error('MongoDB URI not found in environment variables');
       process.exit(1);

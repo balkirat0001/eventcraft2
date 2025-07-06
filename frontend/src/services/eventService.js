@@ -311,17 +311,7 @@ export const eventService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching organizer events:', error);
-      // Fallback: Get all events and filter by organizer in frontend
-      // This is a temporary solution for demo purposes
-      try {
-        const allEventsResponse = await api.get('/events');
-        const allEvents = allEventsResponse.data.events || [];
-        // For demo, return first 3 events as if they belong to the current organizer
-        return allEvents.slice(0, 3);
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        return mockDelay([]);
-      }
+      throw error; // Don't use fallback, let the caller handle the error
     }
   },
 
@@ -332,15 +322,7 @@ export const eventService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching event analytics:', error);
-      // Return demo analytics data
-      return mockDelay({
-        totalEvents: 6,
-        totalAttendees: 1250,
-        totalRevenue: 4500,
-        upcomingEvents: 4,
-        draftEvents: 2,
-        publishedEvents: 4
-      });
+      throw error; // Don't use fallback, let the caller handle the error
     }
   },
 
@@ -443,254 +425,27 @@ export const eventService = {
   // Register for event
   registerForEvent: async (eventId) => {
     try {
-      console.log('===== REGISTER FOR EVENT DEBUG =====');
-      console.log('Event ID received:', eventId);
-      console.log('Event ID type:', typeof eventId);
+      console.log('🎫 Registering for event:', eventId);
       
-      // In a real app: const response = await api.post(`/events/${eventId}/register`);
       const user = authService.getCurrentUser();
-      console.log('Current user:', user);
-      
       if (!user) {
         throw new Error('You must be logged in to register for events');
       }
       
-      // Direct handling for event ID 1
-      if (eventId === '1' || eventId === 1 || eventId === '1') {
-        console.log('Using direct function for event ID 1 registration');
-        
-        // Get a copy of event 1
-        const event1 = getEvent1();
-        
-        // Check if user is already registered - but don't throw error, just return success
-        if (event1.attendees && Array.isArray(event1.attendees) && 
-            (event1.attendees.includes(user.id) || event1.attendees.includes(user._id))) {
-          console.log('User already registered for event 1, but continuing');
-          return mockDelay({
-            message: 'Registration successful',
-            event: event1,
-            alreadyRegistered: true
-          });
-        }
-        
-        // Ensure attendees array exists
-        if (!event1.attendees) {
-          event1.attendees = [];
-        }
-        
-        // Register user
-        event1.attendees.push(user.id);
-        
-        // Update the first event in mockEvents
-        if (mockEvents.length > 0 && (mockEvents[0].id === '1' || mockEvents[0]._id === '1')) {
-          mockEvents[0].attendees = [...mockEvents[0].attendees || [], user.id];
-        }
-        
-        console.log('User registered successfully for event 1');
-        
-        // Create a ticket for the user
-        try {
-          console.log('Creating ticket for event 1');
-          const ticketTypeId = 'tt002'; // Standard ticket type for event 1
-          await ticketService.purchaseTickets('1', ticketTypeId, 1);
-          console.log('Ticket created successfully for event 1');
-        } catch (ticketError) {
-          console.error('Error creating ticket:', ticketError);
-          // Continue with registration even if ticket creation fails
-        }
-        
-        return mockDelay({
-          message: 'Registration successful',
-          event: event1
-        });
-      }
+      console.log('👤 Current user:', user.email);
       
-      // Debug all events
-      console.log('All available events:');
-      mockEvents.forEach((e, index) => {
-        console.log(`Event ${index}:`, {
-          id: e.id,
-          _id: e._id,
-          title: e.title,
-          idType: typeof e.id,
-          _idType: typeof e._id
-        });
+      // Make real API call to backend
+      const response = await api.post(`/events/${eventId}/register`, {
+        ticketType: 'General Admission',
+        quantity: 1
       });
       
-      // Try direct array access first for event "1"
-      if (eventId === "1" || eventId === 1 || eventId === '1') {
-        console.log('Special case: Using first mock event for ID 1');
-        
-        if (mockEvents.length === 0) {
-          console.error('No mock events available');
-          throw new Error('No events available');
-        }
-        
-        const firstEvent = {...mockEvents[0]};  // Create a copy to avoid reference issues
-        
-        console.log('Selected first event:', firstEvent);
-        
-        // Check if user is already registered - but don't throw error, just return success
-        if (firstEvent.attendees && Array.isArray(firstEvent.attendees) && 
-            (firstEvent.attendees.includes(user.id) || firstEvent.attendees.includes(user._id))) {
-          console.log('User already registered for first event, but continuing');
-          return mockDelay({
-            message: 'Registration successful',
-            event: firstEvent,
-            alreadyRegistered: true
-          });
-        }
-        
-        // Ensure attendees array exists
-        if (!firstEvent.attendees) {
-          firstEvent.attendees = [];
-          mockEvents[0].attendees = [];
-        }
-        
-        // Check if event is at capacity
-        if (firstEvent.capacity && firstEvent.attendees.length >= firstEvent.capacity) {
-          throw new Error('This event is at full capacity');
-        }
-        
-        // Register user
-        mockEvents[0].attendees.push(user.id);
-        console.log('User registered successfully for first event. Updated event:', mockEvents[0]);
-        
-        // Create a ticket for the user
-        try {
-          console.log('Creating ticket for first event');
-          // Find appropriate ticket type or use default
-          const eventTicketTypes = ticketService.mockTicketTypes[mockEvents[0].id] || [];
-          const ticketTypeId = eventTicketTypes.length > 0 ? eventTicketTypes[0].id : `default-${mockEvents[0].id}`;
-          await ticketService.purchaseTickets(mockEvents[0].id, ticketTypeId, 1);
-          console.log('Ticket created successfully for first event');
-        } catch (ticketError) {
-          console.error('Error creating ticket:', ticketError);
-          // Continue with registration even if ticket creation fails
-        }
-        
-        return mockDelay({
-          message: 'Registration successful',
-          event: mockEvents[0]
-        });
-      }
+      console.log('✅ Registration successful:', response.data);
       
-      // Try all possible ID formats and matching strategies
-      console.log('Trying to find event with ID:', eventId);
-      
-      // Convert eventId to string for comparison if it's a number
-      const eventIdStr = String(eventId);
-      
-      // Look for event with any matching ID format using multiple strategies
-      let foundEvent = null;
-      let eventIndex = -1;
-      
-      // Strategy 1: Direct equality
-      eventIndex = mockEvents.findIndex(e => e.id === eventId || e._id === eventId);
-      console.log('Strategy 1 result:', eventIndex);
-      
-      // Strategy 2: String comparison
-      if (eventIndex === -1) {
-        eventIndex = mockEvents.findIndex(e => 
-          String(e.id) === eventIdStr || 
-          String(e._id) === eventIdStr
-        );
-        console.log('Strategy 2 result:', eventIndex);
-      }
-      
-      // Strategy 3: Case insensitive comparison
-      if (eventIndex === -1) {
-        eventIndex = mockEvents.findIndex(e => 
-          String(e.id).toLowerCase() === eventIdStr.toLowerCase() || 
-          String(e._id).toLowerCase() === eventIdStr.toLowerCase()
-        );
-        console.log('Strategy 3 result:', eventIndex);
-      }
-      
-      // Strategy 4: Trimmed comparison
-      if (eventIndex === -1) {
-        eventIndex = mockEvents.findIndex(e => 
-          String(e.id).trim() === eventIdStr.trim() || 
-          String(e._id).trim() === eventIdStr.trim()
-        );
-        console.log('Strategy 4 result:', eventIndex);
-      }
-      
-      // Strategy 5: Numeric comparison (if IDs are numeric)
-      if (eventIndex === -1 && !isNaN(Number(eventIdStr))) {
-        const numericId = Number(eventIdStr);
-        eventIndex = mockEvents.findIndex(e => 
-          (!isNaN(Number(e.id)) && Number(e.id) === numericId) || 
-          (!isNaN(Number(e._id)) && Number(e._id) === numericId)
-        );
-        console.log('Strategy 5 result:', eventIndex);
-      }
-      
-      // Final check
-      if (eventIndex === -1) {
-        console.error('Event not found with ID:', eventId);
-        console.log('Available event IDs:', mockEvents.map(e => ({ id: e.id, _id: e._id })));
-        
-        // FALLBACK: Just use the first event if we can't find a match
-        console.log('FALLBACK: Using first event as last resort');
-        if (mockEvents.length > 0) {
-          foundEvent = mockEvents[0];
-          eventIndex = 0;
-        } else {
-          throw new Error('Event not found and no fallback events available');
-        }
-      } else {
-        foundEvent = mockEvents[eventIndex];
-      }
-      
-      console.log('Found event for registration:', foundEvent);
-      
-      // Check if user is already registered - but don't throw error, just return success
-      if (foundEvent.attendees && 
-          (foundEvent.attendees.includes(user.id) || foundEvent.attendees.includes(user._id))) {
-        console.log('User already registered for event, but continuing');
-        return mockDelay({
-          message: 'Registration successful',
-          event: foundEvent,
-          alreadyRegistered: true
-        });
-      }
-      
-      // Ensure attendees array exists
-      if (!foundEvent.attendees) {
-        foundEvent.attendees = [];
-        mockEvents[eventIndex].attendees = [];
-      }
-      
-      // Check if event is at capacity
-      if (foundEvent.capacity && foundEvent.attendees.length >= foundEvent.capacity) {
-        throw new Error('This event is at full capacity');
-      }
-      
-      // Register user
-      mockEvents[eventIndex].attendees.push(user.id);
-      console.log('User registered successfully. Updated event:', mockEvents[eventIndex]);
-      
-      // Create a ticket for the user
-      try {
-        console.log('Creating ticket for event:', foundEvent.title);
-        // Find appropriate ticket type or use default
-        const eventTicketTypes = ticketService.mockTicketTypes[foundEvent.id] || [];
-        const ticketTypeId = eventTicketTypes.length > 0 ? eventTicketTypes[0].id : `default-${foundEvent.id}`;
-        await ticketService.purchaseTickets(foundEvent.id, ticketTypeId, 1);
-        console.log('Ticket created successfully for event:', foundEvent.title);
-      } catch (ticketError) {
-        console.error('Error creating ticket:', ticketError);
-        // Continue with registration even if ticket creation fails
-      }
-      
-      return mockDelay({
-        message: 'Registration successful',
-        event: mockEvents[eventIndex]
-      });
+      return response.data;
     } catch (error) {
-      console.error('Registration error:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to register for event');
+      console.error('❌ Registration failed:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Registration failed');
     }
   },
   

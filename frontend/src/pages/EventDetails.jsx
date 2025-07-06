@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import eventService from '../services/eventService';
 import ticketService from '../services/ticketService';
 import { useNotification } from '../components/NotificationContext';
+import FavoriteButton from '../components/FavoriteButton';
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -28,20 +29,7 @@ const EventDetails = () => {
         setLoading(true);
         console.log('Fetching event with ID:', id);
         
-        // Force event 1 to be the first event in the mock data
-        let eventData;
-        if (id === '1' || id === 1) {
-          console.log('Using special case for event ID 1');
-          try {
-            eventData = await eventService.getEvent('1');
-          } catch (err) {
-            console.error('Error with special case, falling back to normal fetch');
-            eventData = await eventService.getEvent(id);
-          }
-        } else {
-          eventData = await eventService.getEvent(id);
-        }
-        
+        const eventData = await eventService.getEvent(id);
         console.log('Event data received:', eventData);
         
         // Ensure the event has both id and _id properties
@@ -59,46 +47,19 @@ const EventDetails = () => {
         setEvent(eventData);
         setError(null);
         
-        // Fetch ticket types for this event
-        try {
-          console.log(`Fetching ticket types for event ID: ${eventData.id}`);
-          const ticketTypesData = await ticketService.getTicketTypes(eventData.id);
-          console.log('Ticket types received:', ticketTypesData);
-          
-          if (ticketTypesData && ticketTypesData.length > 0) {
-            setTicketTypes(ticketTypesData);
-            setSelectedTicketType(ticketTypesData[0]);
-            console.log('Using fetched ticket types');
-          } else {
-            console.log('No ticket types returned, creating default');
-            // If no ticket types, create a default one
-            const defaultTicketType = {
-              id: `default-${eventData.id}`,
-              eventId: eventData.id,
-              name: 'Standard Admission',
-              price: eventData.price || eventData.ticketPrice || 99.99,
-              available: eventData.capacity || 100,
-              sold: eventData.attendees?.length || 0,
-              description: 'Standard admission to the event'
-            };
-            console.log('Created default ticket type:', defaultTicketType);
-            setTicketTypes([defaultTicketType]);
-            setSelectedTicketType(defaultTicketType);
-          }
-        } catch (err) {
-          console.error('Error fetching ticket types:', err);
-          // Create a default ticket type if fetch fails
-          console.log('Error occurred, creating default ticket type');
+        // Set up ticket types based on event data
+        if (eventData.ticketTypes && eventData.ticketTypes.length > 0) {
+          setTicketTypes(eventData.ticketTypes);
+          setSelectedTicketType(eventData.ticketTypes[0]);
+        } else {
+          // Create a default ticket type from event data
           const defaultTicketType = {
-            id: `default-${eventData.id}`,
-            eventId: eventData.id,
-            name: 'Standard Admission',
-            price: eventData.price || eventData.ticketPrice || 99.99,
-            available: eventData.capacity || 100,
-            sold: eventData.attendees?.length || 0,
+            id: 'general-admission',
+            name: 'General Admission',
+            price: eventData.ticketPrice || eventData.price || 0,
+            available: (eventData.capacity || 100) - (eventData.attendees?.length || 0),
             description: 'Standard admission to the event'
           };
-          console.log('Created default ticket type:', defaultTicketType);
           setTicketTypes([defaultTicketType]);
           setSelectedTicketType(defaultTicketType);
         }
@@ -151,33 +112,19 @@ const EventDetails = () => {
     try {
       setProcessingPayment(true);
       
-      console.log('Processing payment for event:', id);
+      console.log('Processing registration for event:', id);
       console.log('Selected ticket type:', selectedTicketType);
       console.log('Quantity:', quantity);
       
-      // Register for the event
-      try {
-        await eventService.registerForEvent(id);
-        console.log('Successfully registered for event');
-      } catch (regError) {
-        console.error('Registration error, but continuing with ticket purchase:', regError);
-        // Continue with ticket purchase even if registration fails
-      }
+      // Register for the event (this creates the ticket automatically)
+      const registrationResponse = await eventService.registerForEvent(id);
+      console.log('Successfully registered for event:', registrationResponse);
       
-      // Purchase tickets
-      const ticketResponse = await ticketService.purchaseTickets(
-        id,
-        selectedTicketType?.id || `default-${id}`,
-        quantity
-      );
-      
-      console.log('Ticket purchase response:', ticketResponse);
-      
-      success('Payment successful! You are now registered for the event.');
+      success('Registration successful! You are now registered for the event.');
       setStep('confirmation');
     } catch (err) {
-      console.error('Payment error:', err);
-      showError(err.message || 'Payment failed. Please try again.');
+      console.error('Registration error:', err);
+      showError(err.message || 'Registration failed. Please try again.');
     } finally {
       setProcessingPayment(false);
     }
@@ -277,6 +224,14 @@ const EventDetails = () => {
   // Check if user is already registered
   const isRegistered = user && event.attendees && 
     (event.attendees.includes(user.id) || event.attendees.includes(user._id));
+
+  // Check if user is the organizer of this event
+  const isOrganizer = user && event.organizer && 
+    ((typeof event.organizer === 'string' && event.organizer === user._id) ||
+     (typeof event.organizer === 'object' && event.organizer._id === user._id));
+
+  // Check if user is admin
+  const isAdmin = user && user.role === 'admin';
 
   // Render based on current step
   if (step === 'tickets') {
@@ -530,10 +485,19 @@ const EventDetails = () => {
         />
 
         <div className="p-6">
-          <h1 className="text-3xl font-bold text-blue-700 mb-2">{event.title}</h1>
-          <p className="text-gray-600 mb-4">
-            📅 {formatDate(event.date)} at 🕒 {formatTime(event.date)}
-          </p>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-blue-700 mb-2">{event.title}</h1>
+              <p className="text-gray-600 mb-4">
+                📅 {formatDate(event.date)} at 🕒 {formatTime(event.date)}
+              </p>
+            </div>
+            <FavoriteButton 
+              eventId={event._id || event.id} 
+              size="lg" 
+              className="ml-4 bg-white shadow-sm border border-gray-200" 
+            />
+          </div>
           <p className="text-gray-700 font-medium mb-2">📍 {event.location}</p>
           <p className="text-gray-600 leading-relaxed mb-6">{event.description}</p>
           
@@ -578,9 +542,118 @@ const EventDetails = () => {
             </div>
           </div>
 
-          {isRegistered ? (
+          {isOrganizer ? (
+            <div className="space-y-4">
+              <div className="bg-blue-100 text-blue-800 p-4 rounded mb-4">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">You are the organizer of this event</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button 
+                  onClick={() => navigate(`/organizer/create-event?edit=${event._id || event.id}`)}
+                  className="bg-blue-600 text-white px-6 py-3 rounded font-medium hover:bg-blue-700 transition flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Edit Event</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigate(`/organizer/dashboard`)}
+                  className="bg-green-600 text-white px-6 py-3 rounded font-medium hover:bg-green-700 transition flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                  <span>Manage Event</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigate(`/organizer/dashboard`)}
+                  className="bg-purple-600 text-white px-6 py-3 rounded font-medium hover:bg-purple-700 transition flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span>View Analytics</span>
+                </button>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded">
+                <h3 className="font-medium text-gray-900 mb-2">Event Statistics</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Attendees:</span>
+                    <span className="ml-1 font-medium">{event.attendees?.length || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Capacity:</span>
+                    <span className="ml-1 font-medium">{event.capacity || 'Unlimited'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`ml-1 font-medium capitalize ${
+                      event.status === 'published' ? 'text-green-600' : 
+                      event.status === 'draft' ? 'text-yellow-600' : 
+                      'text-gray-600'
+                    }`}>{event.status}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Registration:</span>
+                    <span className="ml-1 font-medium">
+                      {event.attendees?.length >= event.capacity ? 'Full' : 'Open'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : isAdmin ? (
+            <div className="space-y-4">
+              <div className="bg-red-100 text-red-800 p-4 rounded mb-4">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.5-1.5a2.5 2.5 0 00-5 0l-.5 8.5a.5.5 0 001 0L16 15.5a2.5 2.5 0 000-5zm0 0h-5.5m0 0l-7-7 7 7z" />
+                  </svg>
+                  <span className="font-medium">Administrator View</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button 
+                  onClick={() => navigate(`/admin/moderation`)}
+                  className="bg-red-600 text-white px-6 py-3 rounded font-medium hover:bg-red-700 transition flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Moderate Event</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigate('/attendee/dashboard')}
+                  className="bg-green-600 text-white px-6 py-3 rounded font-medium hover:bg-green-700 transition flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>View as Attendee</span>
+                </button>
+              </div>
+            </div>
+          ) : isRegistered ? (
             <div className="bg-green-100 text-green-800 p-4 rounded mb-4">
-              You are registered for this event!
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">You are registered for this event!</span>
+              </div>
             </div>
           ) : (
             <button 

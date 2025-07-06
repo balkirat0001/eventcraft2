@@ -34,7 +34,7 @@ const UserSchema = new mongoose.Schema({
   preferences: {
     notifications: {
       email: { type: Boolean, default: true },
-      push: { type: Boolean, default: true }
+      sms: { type: Boolean, default: false }
     },
     eventTypes: [String],
     privacy: {
@@ -42,6 +42,10 @@ const UserSchema = new mongoose.Schema({
       showPhone: { type: Boolean, default: false }
     }
   },
+  favoriteEvents: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -58,4 +62,4 @@ UserSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('User', UserSchema); 
+module.exports = mongoose.model('User', UserSchema);

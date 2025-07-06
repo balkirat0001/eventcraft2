@@ -23,7 +23,7 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://localhost:5173', 'https://s.gravatar.com', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'https://localhost:5173', 'https://localhost:5174', 'https://s.gravatar.com', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-mock-role'],
   credentials: true

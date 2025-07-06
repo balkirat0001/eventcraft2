@@ -29,9 +29,51 @@ const userService = {
   // Update user profile
   updateProfile: async (userData) => {
     try {
-      // In a real app: const response = await api.put('/user/profile', userData);
-      return authService.updateProfile(userData);
+      console.log('🔄 Starting profile update...');
+      console.log('📝 Input userData:', userData);
+      
+      const requestData = {
+        name: userData.name,
+        bio: userData.bio,
+        phone: userData.phoneNumber || userData.phone, // Map phoneNumber to phone
+        location: userData.location,
+        preferences: userData.preferences
+      };
+      
+      console.log('📡 Sending request data:', requestData);
+      console.log('🔗 API endpoint: /users/profile');
+      
+      // Make real API call to backend
+      const response = await api.put('/users/profile', requestData);
+      
+      console.log('✅ Profile update successful!');
+      console.log('📋 Response status:', response.status);
+      console.log('📋 Response data:', response.data);
+      
+      // Map phone back to phoneNumber for frontend compatibility
+      const updatedUser = {
+        ...response.data,
+        phoneNumber: response.data.phone // Map phone to phoneNumber
+      };
+      
+      console.log('🔄 Mapped user data for frontend:', updatedUser);
+      
+      // Update local storage with new user data
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const mergedUser = { ...currentUser, ...updatedUser };
+      localStorage.setItem('user', JSON.stringify(mergedUser));
+      
+      console.log('💾 Updated localStorage with new user data');
+      
+      return { data: updatedUser };
     } catch (error) {
+      console.error('❌ Profile update failed!');
+      console.error('🚨 Error details:', error);
+      console.error('📊 Error response:', error.response);
+      console.error('🔢 Error status:', error.response?.status);
+      console.error('📄 Error data:', error.response?.data);
+      console.error('📝 Error message:', error.response?.data?.message);
+      
       throw new Error(error.response?.data?.message || 'Failed to update profile');
     }
   },
